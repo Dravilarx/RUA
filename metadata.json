@@ -1,0 +1,5 @@
+{
+  "name": "GRUA - Gestión Radiología Universidad de Antofagasta",
+  "description": "An academic management system for the Radiology specialty at the University of Antofagasta. It allows managing students, teachers, subjects, records, and grades with controlled access.",
+  "requestFramePermissions": []
+}
