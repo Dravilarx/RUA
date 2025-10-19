@@ -48,6 +48,26 @@ export interface Grade {
   isFinalized: boolean;
 }
 
+export interface GradeReport {
+  id: number;
+  gradeId: number;
+  studentId: number;
+  subjectId: number;
+  teacherId?: number;
+  generationDate: Date;
+  gradeSummary: {
+    grade1?: number;
+    grade2?: number;
+    grade3?: number;
+    finalGrade: number;
+  };
+  competencyScores: (number | null)[];
+  feedback: string;
+  status: 'Pendiente Aceptación' | 'Completado';
+  signatureDate?: Date;
+  studentAcceptanceDate?: Date;
+}
+
 export interface ActivityLog {
   id: number;
   timestamp: Date;
@@ -78,4 +98,6 @@ export interface NewsArticle {
   author: string;
   date: Date;
   imageUrl?: string;
+  // FIX: Added attachments for news articles.
+  attachments?: { name: string; url: string; type: string }[];
 }

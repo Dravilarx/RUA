@@ -1,7 +1,7 @@
-import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle } from './types';
+import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport } from './types';
 
 // Placeholder base64 images for demonstration
-const placeholderUserLight = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E1YjRjYyIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
+const placeholderUserLight = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E1YjRjYyIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saWW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
 const placeholderUserDark = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzQ3NTU2OSIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
 const placeholderNewsImage = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
@@ -25,10 +25,40 @@ export const initialSubjects: Subject[] = [
 
 export const initialGrades: Grade[] = [
   { id: 1, studentId: 1, subjectId: 1, grade1: 6.5, grade2: 6.1, grade3: 5.5, competencyScores: [7, 6, 5, 7, 6, 6, 5, 7], lastModified: '2024-05-10T10:00:00Z', isFinalized: true },
-  { id: 2, studentId: 1, subjectId: 2, grade1: 5.8, grade2: 6.0, competencyScores: [6, 6, 6, 6, 6, 6, 6, 6], lastModified: '2024-05-11T11:30:00Z', isFinalized: false },
-  { id: 3, studentId: 2, subjectId: 1, grade1: 7.0, grade2: 7.0, grade3: 7.0, competencyScores: [7, 7, 7, 7, 7, 7, 7, 7], lastModified: '2024-05-12T09:00:00Z', isFinalized: false },
+  { id: 2, studentId: 1, subjectId: 2, grade1: 5.8, grade2: 6.0, grade3: 6.0, competencyScores: [6, 6, 6, 6, 6, 6, 6, 6], lastModified: '2024-05-11T11:30:00Z', isFinalized: false },
+  { id: 3, studentId: 2, subjectId: 1, grade1: 7.0, grade2: 7.0, grade3: 7.0, competencyScores: [7, 7, 7, 7, 7, 7, 7, 7], lastModified: '2024-05-12T09:00:00Z', isFinalized: true },
   { id: 4, studentId: 3, subjectId: 3, grade1: 3.9, grade2: 3.8, grade3: 3.5, competencyScores: [4, 4, 3, 4, 4, 3, 4, 5], lastModified: '2024-05-13T14:00:00Z', isFinalized: false },
-  { id: 5, studentId: 2, subjectId: 2, grade1: 6.2, grade2: 6.3, grade3: 6.8, competencyScores: [7, 6, 6, 7, 6, 6, 6, 6], lastModified: '2024-05-14T16:00:00Z', isFinalized: true },
+  { id: 5, studentId: 2, subjectId: 2, grade1: 6.2, grade2: 6.3, competencyScores: [7, 6, 6, 7, 6, 6, 6, 6], lastModified: '2024-05-14T16:00:00Z', isFinalized: false },
+];
+
+export const initialGradeReports: GradeReport[] = [
+    {
+        id: 1,
+        gradeId: 1,
+        studentId: 1,
+        subjectId: 1,
+        teacherId: 1,
+        generationDate: new Date('2024-05-10T10:05:00Z'),
+        gradeSummary: { grade1: 6.5, grade2: 6.1, grade3: 5.5, finalGrade: 6.2 },
+        competencyScores: [7, 6, 5, 7, 6, 6, 5, 7],
+        feedback: "Ana demostró una sólida comprensión de la anatomía en las imágenes de TC y RM. Su desempeño en la prueba teórica fue notable. Se sugiere continuar reforzando la identificación de variantes anatómicas menos comunes. Excelente progreso durante la rotación.",
+        status: 'Pendiente Aceptación',
+        signatureDate: new Date('2024-05-11T09:00:00Z'),
+    },
+    {
+        id: 2,
+        gradeId: 3,
+        studentId: 2,
+        subjectId: 1,
+        teacherId: 1,
+        generationDate: new Date('2024-05-14T16:05:00Z'),
+        gradeSummary: { grade1: 7.0, grade2: 7.0, grade3: 7.0, finalGrade: 7.0 },
+        competencyScores: [7, 7, 7, 7, 7, 7, 7, 7],
+        feedback: "Luis ha mostrado un dominio excepcional en todos los aspectos de la anatomía radiológica. Su juicio clínico es impecable y su capacidad de autoaprendizaje es un ejemplo para sus pares. Felicitaciones por un desempeño sobresaliente.",
+        status: 'Completado',
+        signatureDate: new Date('2024-05-15T11:00:00Z'),
+        studentAcceptanceDate: new Date('2024-05-16T15:00:00Z'),
+    }
 ];
 
 export const initialActivityLog: ActivityLog[] = [
@@ -67,7 +97,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'Se informa a toda la comunidad académica que ha comenzado el proceso de autoevaluación con miras a la acreditación del programa para el período 2025-2029. Se invita a todos los estamentos a participar activamente en las reuniones y encuestas que se realizarán durante los próximos meses. Su participación es fundamental para el éxito de este proceso.', 
     author: 'Dirección de Postgrado', 
     date: new Date(Date.now() - 86400000 * 2), 
-    imageUrl: 'https://images.unsplash.com/photo-1581092580424-3a213694157c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1581092580424-3a213694157c?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   { 
     id: 2, 
@@ -75,7 +105,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'Nos complace anunciar una nueva alianza estratégica con el Hospital Clínico Metropolitano, que permitirá a nuestros residentes acceder a rotaciones en unidades de alta especialización, incluyendo neurorradiología intervencionista y radiología mamaria avanzada. Esta colaboración fortalecerá la formación práctica y la exposición a casos complejos.', 
     author: 'Coordinación Académica', 
     date: new Date(Date.now() - 86400000 * 5), 
-    imageUrl: 'https://images.unsplash.com/photo-1612534948600-b1d53bfc73a6?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1612534948600-b1d53bfc73a6?q=80&w=1974&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   { 
     id: 3, 
@@ -83,6 +113,6 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'El próximo mes se llevará a cabo el Seminario Internacional de Física Médica en nuestro auditorio principal. Contaremos con la presencia de expositores de renombre mundial que discutirán los últimos avances en dosimetría, protección radiológica y control de calidad en imagenología. Las inscripciones ya están abiertas para toda la comunidad universitaria.', 
     author: 'Dr. Ricardo Pérez', 
     date: new Date(Date.now() - 86400000 * 10),
-    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   }
 ];

@@ -1,6 +1,7 @@
-import React, { useState, FC, ChangeEvent, useMemo } from 'react';
-import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle } from './types';
-import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles } from './data';
+
+import React, { useState, FC, ChangeEvent, useMemo, useEffect, useRef } from 'react';
+import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport } from './types';
+import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports } from './data';
 
 // --- Helper & Utility Functions ---
 
@@ -54,6 +55,15 @@ const formatRelativeTime = (date: Date): string => {
     return `Hace ${Math.floor(seconds)} segundos`;
 };
 
+const calculateFinalGrade = (grade: Pick<Grade, 'grade1' | 'grade2' | 'grade3'>) => {
+    const { grade1, grade2, grade3 } = grade;
+    if (grade1 == null || grade2 == null || grade3 == null) {
+      return null;
+    }
+    return (grade1 * 0.6) + (grade2 * 0.3) + (grade3 * 0.1);
+};
+
+
 // --- SVG Icons ---
 
 const MenuIcon: FC<{ className?: string }> = ({ className }) => (
@@ -101,17 +111,8 @@ const UploadIcon: FC<{ className?: string }> = ({ className }) => (
 const CheckSquareIcon: FC<{ className?: string }> = ({ className }) => (
     <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
 );
-const LockClosedIcon: FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-);
-const LockOpenIcon: FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
-);
 const ChevronLeftIcon: FC<{ className?: string }> = ({ className }) => (
     <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><polyline points="15 18 9 12 15 6"></polyline></svg>
-);
-const MessageSquareIcon: FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
 );
 const CalendarIcon: FC<{ className?: string }> = ({ className }) => (
     <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -119,11 +120,14 @@ const CalendarIcon: FC<{ className?: string }> = ({ className }) => (
 const NewspaperIcon: FC<{ className?: string }> = ({ className }) => (
     <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2h-2v-2h2"></path><path d="M8 2v20"></path><path d="M14 2v6h6"></path><path d="M14 10h6"></path><path d="M14 14h6"></path><path d="M14 18h6"></path></svg>
 );
+const SendIcon: FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+);
 
 
 // --- Generic Components ---
 
-const Modal: FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode, size?: 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' }> = ({ isOpen, onClose, title, children, size = '2xl' }) => {
+const Modal: FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode, size?: 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' }> = ({ isOpen, onClose, title, children, size = '2xl' }) => {
   if (!isOpen) return null;
 
   const sizeClasses = {
@@ -133,6 +137,7 @@ const Modal: FC<{ isOpen: boolean; onClose: () => void; title: string; children:
     '2xl': 'max-w-2xl',
     '3xl': 'max-w-3xl',
     '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
   }
 
   return (
@@ -666,6 +671,12 @@ const CompetencyEvaluationModal: FC<{
 }> = ({ isOpen, onClose, onSave, initialScores }) => {
   const [scores, setScores] = useState<(number | null)[]>(initialScores || Array(8).fill(null));
 
+  useEffect(() => {
+      if (isOpen) {
+          setScores(initialScores || Array(8).fill(null));
+      }
+  }, [isOpen, initialScores]);
+
   const handleScoreChange = (criterionIndex: number, score: number) => {
     const newScores = [...scores];
     newScores[criterionIndex] = score;
@@ -749,6 +760,25 @@ const GradeForm: FC<{
   const [formState, setFormState] = useState(initialFormState);
   const [isCompetencyModalOpen, setIsCompetencyModalOpen] = useState(false);
 
+  useEffect(() => {
+    if(grade) {
+        setFormState(grade);
+    } else {
+        // Reset form for new entry, ensuring studentId and subjectId are valid
+        setFormState({
+            studentId: students[0]?.id || 0, 
+            subjectId: subjects[0]?.id || 0, 
+            grade1: undefined, 
+            grade2: undefined, 
+            grade3: undefined, 
+            competencyScores: Array(8).fill(null), 
+            lastModified: new Date().toISOString(), 
+            isFinalized: false
+        });
+    }
+  }, [grade, students, subjects]);
+
+
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     let processedValue: string | number | undefined = value;
@@ -771,7 +801,7 @@ const GradeForm: FC<{
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formState.studentId || !formState.subjectId) {
+    if (!formState.studentId || !formState.studentId) {
         alert('Por favor, seleccione un alumno y una asignatura.');
         return;
     }
@@ -784,14 +814,14 @@ const GradeForm: FC<{
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-medium-text mb-1">Alumno</label>
-              <select name="studentId" value={formState.studentId} onChange={handleChange} className="w-full border-slate-300 rounded-md shadow-sm" required>
+              <select name="studentId" value={formState.studentId} onChange={handleChange} className="w-full border-slate-300 rounded-md shadow-sm" required disabled={!!grade}>
                 <option value="" disabled>Seleccione un alumno</option>
                 {students.map(s => <option key={s.id} value={s.id}>{s.name} {s.lastName}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-medium-text mb-1">Asignatura</label>
-              <select name="subjectId" value={formState.subjectId} onChange={handleChange} className="w-full border-slate-300 rounded-md shadow-sm" required>
+              <select name="subjectId" value={formState.subjectId} onChange={handleChange} className="w-full border-slate-300 rounded-md shadow-sm" required disabled={!!grade}>
                 <option value="" disabled>Seleccione una asignatura</option>
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -834,18 +864,17 @@ const GradesPage: FC<{
     setGrades: React.Dispatch<React.SetStateAction<Grade[]>>,
     students: Student[],
     subjects: Subject[],
-    teachers: Teacher[],
-    addActivityLog: (desc: string) => void,
-}> = ({ grades, setGrades, students, subjects, teachers, addActivityLog }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+    gradeReports: GradeReport[];
+    onOpenReportModal: (data: { grade: Grade, report?: GradeReport }) => void;
+    addActivityLog: (desc: string) => void;
+}> = ({ grades, setGrades, students, subjects, gradeReports, onOpenReportModal, addActivityLog }) => {
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingGrade, setEditingGrade] = useState<Grade | undefined>(undefined);
-  
   const [isCompetencyModalOpen, setIsCompetencyModalOpen] = useState(false);
   const [evaluatingGrade, setEvaluatingGrade] = useState<Grade | undefined>(undefined);
 
   const studentMap = useMemo(() => new Map<number, Student>(students.map(s => [s.id, s])), [students]);
   const subjectMap = useMemo(() => new Map<number, Subject>(subjects.map(s => [s.id, s])), [subjects]);
-  const teacherMap = useMemo(() => new Map<number, string>(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
 
   const handleSave = (gradeData: Omit<Grade, 'id'>, id?: number) => {
     const studentName = studentMap.get(gradeData.studentId)?.name || 'N/A';
@@ -857,13 +886,13 @@ const GradesPage: FC<{
       setGrades(prev => [...prev, { ...gradeData, id: Date.now() }]);
     }
     addActivityLog(`Calificación para ${studentName} en ${subjectName} ha sido guardada.`);
-    setIsModalOpen(false);
+    setIsFormModalOpen(false);
     setEditingGrade(undefined);
   };
   
   const handleEdit = (grade: Grade) => {
       setEditingGrade(grade);
-      setIsModalOpen(true);
+      setIsFormModalOpen(true);
   }
 
   const handleDelete = (grade: Grade) => {
@@ -892,36 +921,6 @@ const GradesPage: FC<{
     setEvaluatingGrade(undefined);
   };
   
-  const calculateFinalGrade = (grade: Grade) => {
-    const { grade1, grade2, grade3 } = grade;
-    if (grade1 === undefined || grade2 === undefined || grade3 === undefined) {
-      return null;
-    }
-    return (grade1 * 0.6) + (grade2 * 0.3) + (grade3 * 0.1);
-  };
-
-  const handleToggleFinalized = (grade: Grade) => {
-    const studentName = studentMap.get(grade.studentId)?.name || 'N/A';
-    const subjectName = subjectMap.get(grade.subjectId)?.name || 'N/A';
-    
-    if (grade.isFinalized) {
-      const code = prompt("Ingrese el código de administrador para desbloquear:");
-      if (code === "10611061") {
-        const updatedGrade = { ...grade, isFinalized: false, lastModified: new Date().toISOString() };
-        setGrades(prev => prev.map(g => g.id === grade.id ? updatedGrade : g));
-        addActivityLog(`Calificación para ${studentName} en ${subjectName} ha sido DESBLOQUEADA por un administrador.`);
-      } else if (code) {
-        alert("Código incorrecto.");
-      }
-    } else {
-        if (window.confirm(`¿Está seguro de que desea finalizar la calificación para ${studentName} en ${subjectName}? Una vez finalizada, no se podrá editar.`)) {
-            const updatedGrade = { ...grade, isFinalized: true, lastModified: new Date().toISOString() };
-            setGrades(prev => prev.map(g => g.id === grade.id ? updatedGrade : g));
-            addActivityLog(`Calificación para ${studentName} en ${subjectName} ha sido FINALIZADA.`);
-        }
-    }
-  }
-  
   const getGradeColor = (grade: number) => {
     if (grade < 4.0) return 'text-red-600 font-bold';
     if (grade >= 6.0) return 'text-green-600 font-bold';
@@ -932,7 +931,7 @@ const GradesPage: FC<{
     <>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-dark-text">Gestión de Calificaciones</h1>
-        <button onClick={() => { setEditingGrade(undefined); setIsModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+        <button onClick={() => { setEditingGrade(undefined); setIsFormModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
           <PlusIcon className="w-5 h-5 mr-2" />
           Nueva Calificación
         </button>
@@ -948,26 +947,48 @@ const GradesPage: FC<{
               <th className="px-3 py-3 text-center text-xs font-medium text-medium-text uppercase tracking-wider">Competencias (30%)</th>
               <th className="px-3 py-3 text-center text-xs font-medium text-medium-text uppercase tracking-wider">Presentación (10%)</th>
               <th className="px-3 py-3 text-center text-xs font-medium text-medium-text uppercase tracking-wider">Nota Final</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Fecha Modificación</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-medium-text uppercase tracking-wider">Finalizado</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-medium-text uppercase tracking-wider">Acciones</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-medium-text uppercase tracking-wider">Estado</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-medium-text uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-200">
             {grades.map(grade => {
+                const student = studentMap.get(grade.studentId);
                 const subject = subjectMap.get(grade.subjectId);
                 const finalGrade = calculateFinalGrade(grade);
-                const student = studentMap.get(grade.studentId);
+                const report = gradeReports.find(r => r.gradeId === grade.id);
+                const areAllGradesIn = grade.grade1 != null && grade.grade2 != null && grade.grade3 != null;
+
+                let statusText: string;
+                let statusColor: string;
+                let actionButton: React.ReactNode = null;
+
+                if (report?.status === 'Completado') {
+                    statusText = 'Completado';
+                    statusColor = 'bg-green-100 text-green-800';
+                    actionButton = <button onClick={() => onOpenReportModal({ grade, report })} className="text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold py-1 px-3 rounded-full">Ver Reporte</button>;
+                } else if (report?.status === 'Pendiente Aceptación') {
+                    statusText = 'Pendiente Aceptación';
+                    statusColor = 'bg-amber-100 text-amber-800';
+                    actionButton = <button onClick={() => onOpenReportModal({ grade, report })} className="text-sm bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold py-1 px-3 rounded-full">Ver Reporte</button>;
+                } else if (areAllGradesIn) {
+                    statusText = 'Notas OK';
+                    statusColor = 'bg-indigo-100 text-indigo-800';
+                    actionButton = <button onClick={() => onOpenReportModal({ grade })} className="text-sm bg-primary text-white hover:bg-primary-hover font-semibold py-1 px-3 rounded-full">Enviar Feedback</button>;
+                } else {
+                    statusText = 'En curso';
+                    statusColor = 'bg-slate-100 text-slate-800';
+                }
 
                 return (
-                    <tr key={grade.id} className={`hover:bg-slate-50 ${grade.isFinalized ? 'bg-slate-50' : ''}`}>
+                    <tr key={grade.id} className={`${grade.isFinalized ? 'bg-slate-50' : 'hover:bg-slate-50'}`}>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{student?.name} {student?.lastName}</td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-medium-text">{subject?.name || 'N/A'}</td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-center text-medium-text">{grade.grade1?.toFixed(1) ?? '-'}</td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-center text-medium-text">
                             <div className="flex items-center justify-center space-x-2">
                                 <span>{grade.grade2?.toFixed(1) ?? '-'}</span>
-                                <button onClick={() => handleOpenCompetencyModal(grade)} className="text-primary hover:text-primary-hover disabled:text-slate-300 disabled:cursor-not-allowed" aria-label="Evaluar Competencias" disabled={grade.isFinalized}>
+                                <button onClick={() => handleOpenCompetencyModal(grade)} className="text-primary hover:text-primary-hover disabled:text-slate-300 disabled:cursor-not-allowed" aria-label="Evaluar Competencias" disabled={!!report}>
                                     <CheckSquareIcon className="w-4 h-4"/>
                                 </button>
                             </div>
@@ -976,18 +997,21 @@ const GradesPage: FC<{
                         <td className={`px-3 py-4 whitespace-nowrap text-sm text-center ${finalGrade !== null ? getGradeColor(finalGrade) : 'text-medium-text'}`}>
                             {finalGrade !== null ? finalGrade.toFixed(1) : '-'}
                         </td>
-                         <td className="px-4 py-4 whitespace-nowrap text-sm text-medium-text">{new Date(grade.lastModified).toLocaleDateString()}</td>
                          <td className="px-4 py-4 whitespace-nowrap text-center">
-                            <button onClick={() => handleToggleFinalized(grade)} className="disabled:cursor-not-allowed">
-                                {grade.isFinalized 
-                                    ? <LockClosedIcon className="w-5 h-5 mx-auto text-amber-500" /> 
-                                    : <LockOpenIcon className="w-5 h-5 mx-auto text-slate-400 hover:text-amber-500" />
-                                }
-                            </button>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}`}>
+                                {statusText}
+                            </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                             <button onClick={() => handleEdit(grade)} className="text-primary hover:text-primary-hover disabled:text-slate-300 disabled:cursor-not-allowed" disabled={grade.isFinalized}><EditIcon className="w-5 h-5"/></button>
-                             <button onClick={() => handleDelete(grade)} className="text-red-600 hover:text-red-800 disabled:text-slate-300 disabled:cursor-not-allowed" disabled={grade.isFinalized}><TrashIcon className="w-5 h-5"/></button>
+                        <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <div className="flex items-center justify-center space-x-2">
+                                {actionButton}
+                                {!report && (
+                                    <>
+                                        <button onClick={() => handleEdit(grade)} className="text-primary hover:text-primary-hover"><EditIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => handleDelete(grade)} className="text-red-600 hover:text-red-800"><TrashIcon className="w-5 h-5"/></button>
+                                    </>
+                                )}
+                            </div>
                         </td>
                     </tr>
                 );
@@ -996,13 +1020,13 @@ const GradesPage: FC<{
         </table>
       </div>
 
-       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingGrade ? 'Editar Calificación' : 'Nueva Calificación'}>
+       <Modal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} title={editingGrade ? 'Editar Calificación' : 'Nueva Calificación'}>
         <GradeForm 
             grade={editingGrade} 
             students={students}
             subjects={subjects}
             onSave={handleSave} 
-            onCancel={() => { setIsModalOpen(false); setEditingGrade(undefined); }} 
+            onCancel={() => { setIsFormModalOpen(false); setEditingGrade(undefined); }} 
         />
       </Modal>
 
@@ -1018,6 +1042,159 @@ const GradesPage: FC<{
 
 // --- Student Record Module ---
 
+const ReportModal: FC<{
+    isOpen: boolean,
+    onClose: () => void,
+    data: { grade: Grade, report?: GradeReport } | null,
+    onSendReport: (gradeId: number, feedback: string) => void,
+    onAcceptReport: (reportId: number) => void,
+    student: Student | undefined,
+    subjectMap: Map<number, Subject>,
+    teacherMap: Map<number, string>
+}> = ({ isOpen, onClose, data, onSendReport, onAcceptReport, student, subjectMap, teacherMap }) => {
+    const [feedback, setFeedback] = useState("");
+
+    useEffect(() => {
+        if(data) {
+            setFeedback(data.report?.feedback || "");
+        }
+    }, [data]);
+
+    if (!data || !student) return null;
+    
+    const { grade, report } = data;
+    const subject = subjectMap.get(grade.subjectId);
+    const teacher = teacherMap.get(subject?.teacherId || -1);
+
+    const isSending = !report; // We are in the process of creating the report
+    const finalGradeSummary = report ? report.gradeSummary : {
+        grade1: grade.grade1,
+        grade2: grade.grade2,
+        grade3: grade.grade3,
+        finalGrade: calculateFinalGrade(grade) || 0
+    };
+    
+    const handleSend = () => {
+        onSendReport(grade.id, feedback);
+    };
+
+    const handleAccept = () => {
+        if (report) {
+            onAcceptReport(report.id);
+            onClose();
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={`Reporte de Evaluación - ${subject?.name}`} size="5xl">
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="p-4 border rounded-lg bg-slate-50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                            <p className="font-semibold text-medium-text">Alumno</p>
+                            <p className="text-dark-text">{student.name} {student.lastName}</p>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-medium-text">Asignatura</p>
+                            <p className="text-dark-text">{subject?.name}</p>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-medium-text">Docente</p>
+                            <p className="text-dark-text">{teacher || 'Sin Asignar'}</p>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-medium-text">Fecha Generación</p>
+                            <p className="text-dark-text">{report ? new Date(report.generationDate).toLocaleDateString('es-CL') : 'Pendiente'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Grades & Feedback */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1 space-y-4">
+                        <div className="bg-white p-4 rounded-lg shadow-md border">
+                            <h3 className="text-lg font-bold text-dark-text mb-3">Resumen de Notas</h3>
+                            <ul className="space-y-2 text-sm">
+                                <li className="flex justify-between"><span>Prueba Teórica (60%):</span> <span className="font-semibold">{finalGradeSummary.grade1?.toFixed(1)}</span></li>
+                                <li className="flex justify-between"><span>Competencias (30%):</span> <span className="font-semibold">{finalGradeSummary.grade2?.toFixed(1)}</span></li>
+                                <li className="flex justify-between"><span>Presentación (10%):</span> <span className="font-semibold">{finalGradeSummary.grade3?.toFixed(1)}</span></li>
+                                <li className="flex justify-between border-t pt-2 mt-2 font-bold text-base"><span>Nota Final:</span> <span className="text-primary">{finalGradeSummary.finalGrade.toFixed(1)}</span></li>
+                            </ul>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg shadow-md border">
+                             <h3 className="text-lg font-bold text-dark-text mb-3">Feedback del Docente</h3>
+                             <textarea 
+                                value={feedback}
+                                onChange={(e) => setFeedback(e.target.value)}
+                                disabled={!isSending}
+                                rows={8}
+                                placeholder={isSending ? "Escriba aquí su feedback..." : "Sin feedback adicional."}
+                                className="w-full p-2 border-slate-300 rounded-md shadow-sm disabled:bg-slate-100"
+                            />
+                        </div>
+                    </div>
+                    
+                    {/* Competencies */}
+                    <div className="lg:col-span-2 bg-white p-4 rounded-lg shadow-md border">
+                        <h3 className="text-lg font-bold text-dark-text mb-3">Evaluación de Competencias</h3>
+                        <div className="space-y-2">
+                           {COMPETENCY_CRITERIA.map((criterion, index) => (
+                               <div key={index} className="p-2 rounded-md hover:bg-slate-50 border-b last:border-b-0">
+                                   <p className="text-sm text-dark-text mb-1">{criterion}</p>
+                                   <div className="flex items-center space-x-2">
+                                        <p className="text-xs font-semibold text-primary w-24">Puntaje: {grade.competencyScores?.[index] ?? 'N/A'}/7</p>
+                                        <div className="w-full bg-slate-200 rounded-full h-2.5">
+                                            <div className="bg-primary h-2.5 rounded-full" style={{ width: `${((grade.competencyScores?.[index] || 0) / 7) * 100}%` }}></div>
+                                        </div>
+                                   </div>
+                               </div>
+                           ))}
+                        </div>
+                    </div>
+                </div>
+                 {/* Footer & Signature */}
+                <div className="flex justify-between items-center pt-4 border-t mt-4">
+                     <div>
+                        <p className="font-semibold">Estado del Reporte:</p>
+                        {report?.status === 'Completado' ? (
+                             <span className="text-green-600 font-bold flex items-center"><CheckSquareIcon className="w-5 h-5 mr-2" />Completado y Aceptado por alumno el {new Date(report.studentAcceptanceDate!).toLocaleDateString('es-CL')}</span>
+                        ) : report?.status === 'Pendiente Aceptación' ? (
+                            <span className="text-amber-600 font-bold flex items-center"><CheckSquareIcon className="w-5 h-5 mr-2" />Enviado, Pendiente de Aceptación el {new Date(report.signatureDate!).toLocaleDateString('es-CL')}</span>
+                        ) : (
+                             <span className="text-slate-600 font-bold">Pendiente de Envío</span>
+                        )}
+                     </div>
+                     <div className="flex items-center space-x-3">
+                        <button type="button" onClick={onClose} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cerrar</button>
+                        {isSending && (
+                            <button 
+                                type="button" 
+                                onClick={handleSend}
+                                className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center"
+                            >
+                                <SendIcon className="w-5 h-5 mr-2" />
+                                Enviar
+                            </button>
+                        )}
+                         {report?.status === 'Pendiente Aceptación' && (
+                            <button 
+                                type="button" 
+                                onClick={handleAccept}
+                                className="bg-green-600 hover:bg-green-700 text-white rounded-md py-2 px-4 text-sm font-medium flex items-center"
+                            >
+                                <CheckSquareIcon className="w-5 h-5 mr-2" />
+                                Aceptar Reporte
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+
 const StudentRecordPage: FC<{
     students: Student[];
     teachers: Teacher[];
@@ -1025,8 +1202,11 @@ const StudentRecordPage: FC<{
     grades: Grade[];
     anotaciones: Anotacion[];
     setAnotaciones: React.Dispatch<React.SetStateAction<Anotacion[]>>;
+    gradeReports: GradeReport[];
+    onOpenReportModal: (data: { grade: Grade, report: GradeReport }) => void;
+    onAcceptReport: (reportId: number) => void;
     addActivityLog: (desc: string) => void;
-}> = ({ students, teachers, subjects, grades, anotaciones, setAnotaciones, addActivityLog }) => {
+}> = ({ students, teachers, subjects, grades, anotaciones, setAnotaciones, gradeReports, onOpenReportModal, onAcceptReport, addActivityLog }) => {
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -1041,10 +1221,11 @@ const StudentRecordPage: FC<{
             s.rut.includes(searchTerm)
         ), [students, searchTerm]);
 
-    const [activeTab, setActiveTab] = useState<'Calificaciones' | 'Anotaciones'>('Calificaciones');
+    const [activeTab, setActiveTab] = useState<'Calificaciones' | 'Anotaciones' | 'Reportes'>('Calificaciones');
 
     const studentGrades = useMemo(() => grades.filter(g => g.studentId === selectedStudentId), [grades, selectedStudentId]);
     const studentAnotaciones = useMemo(() => anotaciones.filter(a => a.studentId === selectedStudentId).sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()), [anotaciones, selectedStudentId]);
+    const studentReports = useMemo(() => gradeReports.filter(r => r.studentId === selectedStudentId).sort((a,b) => b.generationDate.getTime() - a.generationDate.getTime()), [gradeReports, selectedStudentId]);
     
     const [newAnotacion, setNewAnotacion] = useState({ type: 'Observación' as Anotacion['type'], text: '', autorId: teachers[0]?.id || 0 });
 
@@ -1064,18 +1245,19 @@ const StudentRecordPage: FC<{
         setNewAnotacion({ type: 'Observación', text: '', autorId: teachers[0]?.id || 0 });
     };
 
-    const calculateFinalGrade = (grade: Grade) => {
-        const { grade1, grade2, grade3 } = grade;
-        if (grade1 === undefined || grade2 === undefined || grade3 === undefined) return null;
-        return (grade1 * 0.6) + (grade2 * 0.3) + (grade3 * 0.1);
-    };
-    
     const getAnotacionTypeColor = (type: Anotacion['type']) => {
         switch(type) {
             case 'Positiva': return 'bg-green-100 text-green-800 border-green-300';
             case 'Negativa': return 'bg-red-100 text-red-800 border-red-300';
             case 'Observación': return 'bg-blue-100 text-blue-800 border-blue-300';
             default: return 'bg-slate-100 text-slate-800 border-slate-300';
+        }
+    };
+
+    const handleViewReport = (report: GradeReport) => {
+        const grade = grades.find(g => g.id === report.gradeId);
+        if (grade) {
+            onOpenReportModal({ grade, report });
         }
     };
 
@@ -1108,6 +1290,7 @@ const StudentRecordPage: FC<{
                     <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                         <button onClick={() => setActiveTab('Calificaciones')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Calificaciones' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Calificaciones</button>
                         <button onClick={() => setActiveTab('Anotaciones')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Anotaciones' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Anotaciones</button>
+                        <button onClick={() => setActiveTab('Reportes')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Reportes' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Reportes</button>
                     </nav>
                 </div>
                 
@@ -1128,15 +1311,28 @@ const StudentRecordPage: FC<{
                                         const subject = subjectMap.get(grade.subjectId);
                                         const teacher = teacherMap.get(subject?.teacherId || -1);
                                         const finalGrade = calculateFinalGrade(grade);
+                                        const report = gradeReports.find(r => r.gradeId === grade.id);
+                                        const areAllGradesIn = grade.grade1 != null && grade.grade2 != null && grade.grade3 != null;
+
+                                        let statusText = 'En curso';
+                                        if (report?.status === 'Completado') {
+                                            statusText = 'Completado';
+                                        } else if (report?.status === 'Pendiente Aceptación') {
+                                            statusText = 'Pendiente Aceptación';
+                                        } else if (areAllGradesIn) {
+                                            statusText = 'Notas OK';
+                                        }
+
                                         return (
                                             <tr key={grade.id}>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{subject?.name || 'N/A'}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{teacher || 'Sin asignar'}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-bold text-dark-text">{finalGrade?.toFixed(1) || '-'}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-medium-text">{grade.isFinalized ? 'Finalizada' : 'En Curso'}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-medium-text">{statusText}</td>
                                             </tr>
                                         )
                                     })}
+                                    {studentGrades.length === 0 && (<tr><td colSpan={4} className="text-center py-4 text-medium-text">No hay calificaciones registradas.</td></tr>)}
                                 </tbody>
                             </table>
                         </div>
@@ -1185,6 +1381,50 @@ const StudentRecordPage: FC<{
                             </div>
                         </div>
                     )}
+                     {activeTab === 'Reportes' && (
+                         <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+                           <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Asignatura</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Fecha Generación</th>
+                                        <th className="px-6 py-3 text-center text-xs font-medium text-medium-text uppercase tracking-wider">Estado</th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-medium-text uppercase tracking-wider">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-slate-200">
+                                    {studentReports.map(report => {
+                                        const subject = subjectMap.get(report.subjectId);
+                                        return (
+                                            <tr key={report.id}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{subject?.name || 'N/A'}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{new Date(report.generationDate).toLocaleDateString('es-CL')}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                        report.status === 'Completado' ? 'bg-green-100 text-green-800' :
+                                                        'bg-amber-100 text-amber-800'}`
+                                                    }>
+                                                        {report.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-4">
+                                                    <button onClick={() => handleViewReport(report)} className="font-medium text-primary hover:text-primary-hover">
+                                                        Ver Reporte
+                                                    </button>
+                                                    {report.status === 'Pendiente Aceptación' && (
+                                                        <button onClick={() => onAcceptReport(report.id)} className="font-medium text-green-600 hover:text-green-800 bg-green-100 hover:bg-green-200 py-1 px-3 rounded-full">
+                                                            Aceptar
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {studentReports.length === 0 && (<tr><td colSpan={4} className="text-center py-4 text-medium-text">No hay reportes generados para este alumno.</td></tr>)}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </div>
         )
@@ -1217,6 +1457,65 @@ const StudentRecordPage: FC<{
             </div>
         </div>
     );
+};
+// FIX: Implement functional form for adding new calendar events.
+const EventForm: FC<{ onSave: (event: Omit<CalendarEvent, 'id'>) => void; onCancel: () => void }> = ({ onSave, onCancel }) => {
+  const [title, setTitle] = useState('');
+
+  const toDateTimeLocal = (date: Date) => {
+    const ten = (i: number) => (i < 10 ? '0' : '') + i;
+    const YYYY = date.getFullYear();
+    const MM = ten(date.getMonth() + 1);
+    const DD = ten(date.getDate());
+    const HH = ten(date.getHours());
+    const II = ten(date.getMinutes());
+    return `${YYYY}-${MM}-${DD}T${HH}:${II}`;
+  };
+
+  const [start, setStart] = useState(toDateTimeLocal(new Date()));
+  const [end, setEnd] = useState(toDateTimeLocal(new Date()));
+  const [type, setType] = useState<CalendarEvent['type']>('Evento');
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (new Date(start) > new Date(end)) {
+        alert("La fecha de inicio no puede ser posterior a la fecha de término.");
+        return;
+    }
+    onSave({ title, start: new Date(start), end: new Date(end), type });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-medium-text mb-1">Título del Evento</label>
+        <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label className="block text-sm font-medium text-medium-text mb-1">Inicio</label>
+            <input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-medium-text mb-1">Término</label>
+            <input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-medium-text mb-1">Tipo de Evento</label>
+        <select value={type} onChange={e => setType(e.target.value as CalendarEvent['type'])} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+            <option>Evento</option>
+            <option>Examen</option>
+            <option>Clase</option>
+            <option>Feriado</option>
+        </select>
+      </div>
+      <div className="flex justify-end space-x-3 pt-4">
+            <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
+            <button type="submit" className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium">Agregar Evento</button>
+      </div>
+    </form>
+  );
 };
 
 // --- Calendar Page ---
@@ -1289,10 +1588,87 @@ const CalendarPage: FC<{
                 ))}
             </div>
              <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nuevo Evento">
-                <p>Formulario para agregar evento aquí.</p>
+                <EventForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} />
             </Modal>
         </>
     );
+};
+
+// FIX: Implement functional form for adding new news articles with attachments.
+const NewsForm: FC<{ onSave: (article: Omit<NewsArticle, 'id' | 'date'>) => void; onCancel: () => void }> = ({ onSave, onCancel }) => {
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [author, setAuthor] = useState('Dirección de Postgrado');
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [attachments, setAttachments] = useState<{ name: string; url: string; type: string }[]>([]);
+
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const base64 = await blobToBase64(file);
+      setImageUrl(base64);
+    }
+  };
+
+  const handleAttachmentUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newAttachments = await Promise.all(Array.from(files).map(async file => {
+          const base64 = await blobToBase64(file);
+          return { name: file.name, url: base64, type: file.type };
+      }));
+      setAttachments(prev => [...prev, ...newAttachments]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+      setAttachments(prev => prev.filter((_, i) => i !== index));
+  }
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({ title, content, author, imageUrl, attachments });
+  };
+  
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+            <label className="block text-sm font-medium text-medium-text mb-1">Título</label>
+            <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-medium-text mb-1">Autor</label>
+            <input type="text" value={author} onChange={e => setAuthor(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-medium-text mb-1">Contenido</label>
+            <textarea value={content} onChange={e => setContent(e.target.value)} rows={6} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-medium-text mb-1">Imagen de Portada</label>
+            <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100"/>
+            {imageUrl && <img src={imageUrl} alt="preview" className="mt-2 h-32 w-auto rounded"/>}
+        </div>
+        <div>
+            <label className="block text-sm font-medium text-medium-text mb-1">Archivos Adjuntos (.pdf, .doc, .xls)</label>
+            <input type="file" multiple onChange={handleAttachmentUpload} accept=".pdf,.doc,.docx,.xls,.xlsx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100"/>
+            <div className="mt-2 space-y-2">
+                {attachments.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between bg-slate-100 p-2 rounded">
+                        <span className="text-sm text-dark-text">{file.name}</span>
+                        <button type="button" onClick={() => removeAttachment(index)} className="text-red-500 hover:text-red-700">
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+      <div className="flex justify-end space-x-3 pt-4">
+            <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
+            <button type="submit" className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium">Publicar Noticia</button>
+      </div>
+    </form>
+  );
 };
 
 // --- News Page ---
@@ -1304,8 +1680,8 @@ const NewsPage: FC<{
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
 
-    const handleSave = (articleData: Omit<NewsArticle, 'id'>) => {
-        const newArticle = { ...articleData, id: Date.now() };
+    const handleSave = (articleData: Omit<NewsArticle, 'id'|'date'>) => {
+        const newArticle = { ...articleData, id: Date.now(), date: new Date() };
         setArticles(prev => [newArticle, ...prev]);
         addActivityLog(`Nueva noticia '${newArticle.title}' ha sido publicada.`);
         setIsModalOpen(false);
@@ -1342,12 +1718,24 @@ const NewsPage: FC<{
                         <img src={selectedArticle.imageUrl || 'https://via.placeholder.com/800x400'} alt={selectedArticle.title} className="w-full h-64 object-cover rounded-lg"/>
                         <p className="text-sm text-medium-text">{selectedArticle.author} &bull; {selectedArticle.date.toLocaleDateString('es-CL')}</p>
                         <p className="text-dark-text whitespace-pre-wrap">{selectedArticle.content}</p>
+                        {selectedArticle.attachments && selectedArticle.attachments.length > 0 && (
+                            <div>
+                                <h4 className="font-semibold text-dark-text mb-2">Archivos Adjuntos:</h4>
+                                <ul className="space-y-2">
+                                    {selectedArticle.attachments.map((file, index) => (
+                                        <li key={index}>
+                                            <a href={file.url} download={file.name} className="text-primary hover:underline">{file.name}</a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                 )}
             </Modal>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nueva Noticia">
-                 <p>Formulario para agregar noticia aquí.</p>
+                 <NewsForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} />
             </Modal>
         </>
     );
@@ -1367,7 +1755,36 @@ const StatCard: FC<{ icon: React.ReactNode, title: string, value: string | numbe
     </div>
 );
 
-const Dashboard: FC<{ studentCount: number; teacherCount: number; subjectCount: number; activityLog: ActivityLog[] }> = ({ studentCount, teacherCount, subjectCount, activityLog }) => {
+type Page = 'Dashboard' | 'Alumnos' | 'Docentes' | 'Asignaturas' | 'Calificaciones' | 'Expediente Alumnos' | 'Calendario' | 'Noticias' | 'Configuracion';
+
+const Dashboard: FC<{ 
+    studentCount: number; 
+    teacherCount: number; 
+    subjectCount: number; 
+    activityLog: ActivityLog[];
+    calendarEvents: CalendarEvent[];
+    newsArticles: NewsArticle[];
+    setCurrentPage: (page: Page) => void;
+}> = ({ studentCount, teacherCount, subjectCount, activityLog, calendarEvents, newsArticles, setCurrentPage }) => {
+    
+    const upcomingEvents = useMemo(() => 
+        calendarEvents
+            .filter(event => event.start >= new Date())
+            .slice(0, 4), 
+        [calendarEvents]
+    );
+
+    const latestNews = useMemo(() => newsArticles.slice(0, 2), [newsArticles]);
+
+    const getEventTypeColor = (type: CalendarEvent['type']) => {
+        switch(type) {
+            case 'Examen': return 'bg-red-500';
+            case 'Clase': return 'bg-blue-500';
+            case 'Feriado': return 'bg-green-500';
+            case 'Evento': return 'bg-amber-500';
+        }
+    };
+
     return (
         <div>
             <h1 className="text-2xl font-bold text-dark-text mb-6">Panel de Control</h1>
@@ -1392,20 +1809,66 @@ const Dashboard: FC<{ studentCount: number; teacherCount: number; subjectCount: 
                 />
             </div>
 
-            <h2 className="text-xl font-bold text-dark-text mb-4">Actividad Reciente</h2>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                 <ul className="divide-y divide-slate-200">
-                    {activityLog.length > 0 ? (
-                        activityLog.slice(0, 5).map(log => (
-                           <li key={log.id} className="py-3">
-                                <p className="text-sm text-dark-text">{log.description}</p>
-                                <p className="text-xs text-medium-text">{formatRelativeTime(log.timestamp)}</p>
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+                <div className="xl:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                    <h2 className="text-xl font-bold text-dark-text mb-4">Actividad Reciente</h2>
+                    <ul className="divide-y divide-slate-200">
+                        {activityLog.length > 0 ? (
+                            activityLog.slice(0, 5).map(log => (
+                               <li key={log.id} className="py-3">
+                                    <p className="text-sm text-dark-text">{log.description}</p>
+                                    <p className="text-xs text-medium-text">{formatRelativeTime(log.timestamp)}</p>
+                                </li>
+                            ))
+                        ) : (
+                             <li className="py-3 text-sm text-medium-text">No hay actividad reciente.</li>
+                        )}
+                    </ul>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-dark-text">Próximos Eventos</h2>
+                        <button onClick={() => setCurrentPage('Calendario')} className="text-sm font-semibold text-primary hover:text-primary-hover">
+                            Ver todos
+                        </button>
+                    </div>
+                     <ul className="space-y-3">
+                        {upcomingEvents.length > 0 ? upcomingEvents.map(event => (
+                            <li key={event.id} className="flex items-start space-x-3">
+                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5 ${getEventTypeColor(event.type)}`}></div>
+                                <div>
+                                    <p className="text-sm text-dark-text font-medium leading-tight">{event.title}</p>
+                                    <p className="text-xs text-medium-text">{event.start.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })}</p>
+                                </div>
                             </li>
-                        ))
-                    ) : (
-                         <li className="py-3 text-sm text-medium-text">No hay actividad reciente.</li>
-                    )}
-                 </ul>
+                        )) : <p className="text-sm text-medium-text">No hay eventos próximos.</p>}
+                    </ul>
+                </div>
+            </div>
+            
+            <div>
+                 <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-dark-text">Últimas Noticias</h2>
+                    <button onClick={() => setCurrentPage('Noticias')} className="text-sm font-semibold text-primary hover:text-primary-hover">
+                        Ver todas &rarr;
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {latestNews.map(article => (
+                         <div key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden flex">
+                            <img src={article.imageUrl || 'https://via.placeholder.com/400x200'} alt={article.title} className="w-1/3 h-full object-cover"/>
+                            <div className="p-4 flex flex-col">
+                                <h3 className="text-md font-bold text-dark-text mb-1">{article.title}</h3>
+                                <p className="text-xs text-medium-text mb-2">{article.date.toLocaleDateString('es-CL')}</p>
+                                <p className="text-sm text-dark-text flex-grow hidden sm:block">{article.content.substring(0, 60)}...</p>
+                                <button onClick={() => setCurrentPage('Noticias')} className="mt-2 text-sm font-semibold text-primary hover:text-primary-hover self-start">
+                                    Leer más
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );
@@ -1420,7 +1883,6 @@ const PlaceholderPage: FC<{ title: string }> = ({ title }) => (
 
 
 // --- Main App Component ---
-type Page = 'Dashboard' | 'Alumnos' | 'Docentes' | 'Asignaturas' | 'Calificaciones' | 'Expediente Alumnos' | 'Calendario' | 'Noticias' | 'Configuracion';
 
 const App: FC = () => {
     const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
@@ -1431,8 +1893,15 @@ const App: FC = () => {
     const [anotaciones, setAnotaciones] = useState<Anotacion[]>(initialAnotaciones);
     const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
     const [newsArticles, setNewsArticles] = useState<NewsArticle[]>(initialNewsArticles);
+    const [gradeReports, setGradeReports] = useState<GradeReport[]>(initialGradeReports);
     const [activityLog, setActivityLog] = useState<ActivityLog[]>(initialActivityLog);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    
+    const [reportModalData, setReportModalData] = useState<{ grade: Grade; report?: GradeReport } | null>(null);
+
+    const studentMap = useMemo(() => new Map<number, Student>(students.map(s => [s.id, s])), [students]);
+    const teacherMap = useMemo(() => new Map<number, string>(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
+    const subjectMap = useMemo(() => new Map<number, Subject>(subjects.map(s => [s.id, s])), [subjects]);
 
     const addActivityLog = (description: string) => {
         const newLog: ActivityLog = {
@@ -1443,10 +1912,70 @@ const App: FC = () => {
         setActivityLog(prev => [newLog, ...prev]);
     };
     
+    const handleSendReport = (gradeId: number, feedback: string) => {
+        const grade = grades.find(g => g.id === gradeId);
+        if (!grade) return;
+        
+        const finalGrade = calculateFinalGrade(grade);
+        if (finalGrade === null) {
+            alert("No se pueden finalizar calificaciones incompletas.");
+            return;
+        }
+
+        const studentName = studentMap.get(grade.studentId)?.name || 'N/A';
+        const subject = subjectMap.get(grade.subjectId);
+        
+        const newReport: GradeReport = {
+            id: Date.now(),
+            gradeId: grade.id,
+            studentId: grade.studentId,
+            subjectId: grade.subjectId,
+            teacherId: subject?.teacherId,
+            generationDate: new Date(),
+            gradeSummary: {
+                grade1: grade.grade1,
+                grade2: grade.grade2,
+                grade3: grade.grade3,
+                finalGrade: finalGrade,
+            },
+            competencyScores: grade.competencyScores || [],
+            feedback: feedback,
+            status: 'Pendiente Aceptación',
+            signatureDate: new Date(),
+        };
+
+        setGradeReports(prev => [...prev, newReport]);
+        setGrades(prev => prev.map(g => g.id === gradeId ? { ...g, isFinalized: true, lastModified: new Date().toISOString() } : g));
+        addActivityLog(`Reporte para ${studentName} en ${subject?.name} ha sido enviado.`);
+        setReportModalData(null);
+    };
+    
+    const handleAcceptReport = (reportId: number) => {
+        const report = gradeReports.find(r => r.id === reportId);
+        if (!report) return;
+
+        setGradeReports(prev => prev.map(r =>
+            r.id === reportId
+                ? { ...r, status: 'Completado', studentAcceptanceDate: new Date() }
+                : r
+        ));
+        const student = studentMap.get(report.studentId);
+        const subject = subjectMap.get(report.subjectId);
+        addActivityLog(`Reporte de ${subject?.name} para ${student?.name} ha sido aceptado por el alumno.`);
+    };
+    
     const renderPage = () => {
         switch (currentPage) {
             case 'Dashboard':
-                return <Dashboard studentCount={students.length} teacherCount={teachers.length} subjectCount={subjects.length} activityLog={activityLog} />;
+                return <Dashboard 
+                    studentCount={students.length} 
+                    teacherCount={teachers.length} 
+                    subjectCount={subjects.length} 
+                    activityLog={activityLog}
+                    calendarEvents={calendarEvents}
+                    newsArticles={newsArticles}
+                    setCurrentPage={setCurrentPage}
+                />;
             case 'Alumnos':
                 return <StudentsPage students={students} setStudents={setStudents} addActivityLog={addActivityLog} />;
             case 'Docentes':
@@ -1454,9 +1983,28 @@ const App: FC = () => {
             case 'Asignaturas':
                 return <SubjectsPage subjects={subjects} setSubjects={setSubjects} teachers={teachers} addActivityLog={addActivityLog} />;
             case 'Calificaciones':
-                return <GradesPage grades={grades} setGrades={setGrades} students={students} subjects={subjects} teachers={teachers} addActivityLog={addActivityLog} />;
+                return <GradesPage 
+                    grades={grades} 
+                    setGrades={setGrades} 
+                    students={students} 
+                    subjects={subjects} 
+                    gradeReports={gradeReports} 
+                    onOpenReportModal={setReportModalData}
+                    addActivityLog={addActivityLog} 
+                />;
             case 'Expediente Alumnos':
-                return <StudentRecordPage students={students} teachers={teachers} subjects={subjects} grades={grades} anotaciones={anotaciones} setAnotaciones={setAnotaciones} addActivityLog={addActivityLog} />;
+                return <StudentRecordPage 
+                    students={students} 
+                    teachers={teachers} 
+                    subjects={subjects} 
+                    grades={grades} 
+                    anotaciones={anotaciones} 
+                    setAnotaciones={setAnotaciones} 
+                    gradeReports={gradeReports}
+                    onOpenReportModal={setReportModalData}
+                    onAcceptReport={handleAcceptReport}
+                    addActivityLog={addActivityLog} 
+                />;
             case 'Calendario':
                 return <CalendarPage events={calendarEvents} setEvents={setCalendarEvents} addActivityLog={addActivityLog} />;
             case 'Noticias':
@@ -1535,6 +2083,18 @@ const App: FC = () => {
                     {renderPage()}
                 </main>
             </div>
+            {reportModalData && (
+                 <ReportModal 
+                    isOpen={!!reportModalData}
+                    onClose={() => setReportModalData(null)}
+                    data={reportModalData}
+                    onSendReport={handleSendReport}
+                    onAcceptReport={handleAcceptReport}
+                    student={studentMap.get(reportModalData.grade.studentId)}
+                    subjectMap={subjectMap}
+                    teacherMap={teacherMap}
+                />
+            )}
         </div>
     );
 };
