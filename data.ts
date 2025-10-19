@@ -1,7 +1,7 @@
-import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport } from './types';
+import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument } from './types';
 
 // Placeholder base64 images for demonstration
-const placeholderUserLight = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E1YjRjYyIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saWW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
+const placeholderUserLight = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E1YjRjYyIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
 const placeholderUserDark = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzQ3NTU2OSIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
 const placeholderNewsImage = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
@@ -85,7 +85,7 @@ const getNextDate = (day: number, monthOffset = 0) => {
 export const initialCalendarEvents: CalendarEvent[] = [
     { id: 1, title: 'Examen Final - Anatomía Radiológica', start: getNextDate(28), end: getNextDate(28), type: 'Examen' },
     { id: 2, title: 'Feriado: Día Nacional de los Pueblos Indígenas', start: new Date('2024-06-20T00:00:00'), end: new Date('2024-06-20T23:59:59'), type: 'Feriado' },
-    { id: 3, title: 'Clase Magistral: "Avances en Resonancia Magnética"', start: getNextDate(15, 1), end: getNextDate(15, 1), type: 'Clase' },
+    { id: 3, title: 'Clase Magistral: "Avances en Resonancia Magnética"', start: getNextDate(15, 1), end: getNextDate(15, 1), type: 'Clase', streamingLink: 'https://meet.example.com/clase-magistral' },
     { id: 4, title: 'Congreso Chileno de Radiología', start: getNextDate(5, 2), end: getNextDate(7, 2), type: 'Evento' },
     { id: 5, title: 'Inicio Período de Vacaciones', start: getNextDate(15, 2), end: getNextDate(28, 2), type: 'Evento' },
 ];
@@ -105,7 +105,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'Nos complace anunciar una nueva alianza estratégica con el Hospital Clínico Metropolitano, que permitirá a nuestros residentes acceder a rotaciones en unidades de alta especialización, incluyendo neurorradiología intervencionista y radiología mamaria avanzada. Esta colaboración fortalecerá la formación práctica y la exposición a casos complejos.', 
     author: 'Coordinación Académica', 
     date: new Date(Date.now() - 86400000 * 5), 
-    imageUrl: 'https://images.unsplash.com/photo-1612534948600-b1d53bfc73a6?q=80&w=1974&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1612534948600-b1d53bfc73a6?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   { 
     id: 3, 
@@ -115,4 +115,144 @@ export const initialNewsArticles: NewsArticle[] = [
     date: new Date(Date.now() - 86400000 * 10),
     imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   }
+];
+
+export const initialOfficialDocuments: OfficialDocument[] = [
+  {
+    id: 1,
+    title: 'Reglamento General de Postgrado',
+    description: 'Versión actualizada del reglamento que rige a todos los programas de postgrado de la universidad.',
+    uploadDate: new Date('2024-03-01T10:00:00Z'),
+    author: 'Dirección de Postgrado',
+    file: { name: 'Reglamento_Postgrado_2024.pdf', url: 'data:application/pdf;base64,JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFIvTGFuZyhlcy1DTClgPj4KZW5kb2JqCjIgMCBvYmoKPDwvVHlwZS9QYWdlcy9Db3VudCAxL0tpZHNbMyAwIFJdPj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgNSAwIFI+Pj4+L01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUi9Hcm91cDw8L1R5cGUvR3JvdXAvUy9UcmFuc3BhcmVuY3kvQ1MvRGV2aWNlUkdCPj4vVGFicy9TPj4KZW5kb2JqCjQgMCBvYmoKPDwvRmlsdGVyL0ZsYXRlRGVjb2RlL0xlbmd0aCA4Nj4+CnN0cmVhbQp4nE2NQQrCMBBF95JgMNiAIOJd6gM8g2fQI7hQ4l5c6E08gYfQo1t0V8e9/5v8M1/MHEw5BwzD4C4Yl5/Ax47rJpBGNjFzFcMKUXgQkb0mKl8oT+nUuGlJGksr8d9o3rXbFqW3J+llx/gV4dM13t5FzD2rF6tFC4MlLmwuuI3+3t9s2xMwcA+L0aTd+k/s2Yl0pS4T2l57Ydcr+my5lOAkXKvH4GvCEQo5HBCfKGO8N8AYaHTDAZW5kb3N0cmVhbQplbmRvYmoKNSAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNzAgMDAwMDAgbiAKMDAwMDAwMDA5MyAwMDAwMCBuIAowMDAwMDAwMjg0IDAwMDAwIG4gCjAwMDAwMDA0MDMgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDYvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo0NTIKJSVFT0YK', type: 'application/pdf' }
+  },
+  {
+    id: 2,
+    title: 'Protocolo de Bioseguridad',
+    description: 'Protocolo actualizado para el manejo de equipos y pacientes en el contexto de la bioseguridad hospitalaria.',
+    uploadDate: new Date('2024-04-15T14:30:00Z'),
+    author: 'Comité de Bioseguridad',
+    file: { name: 'Protocolo_Bioseguridad.pdf', url: 'data:application/pdf;base64,JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFIvTGFuZyhlcy1DTClgPj4KZW5kb2JqCjIgMCBvYmoKPDwvVHlwZS9QYWdlcy9Db3VudCAxL0tpZHNbMyAwIFJdPj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgNSAwIFI+Pj4+L01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUi9Hcm91cDw8L1R5cGUvR3JvdXAvUy9UcmFuc3BhcmVuY3kvQ1MvRGV2aWNlUkdCPj4vVGFicy9TPj4KZW5kb2JqCjQgMCBvYmoKPDwvRmlsdGVyL0ZsYXRlRGVjb2RlL0xlbmd0aCA4Nj4+CnN0cmVhbQp4nE2NQQrCMBBF95JgMNiAIOJd6gM8g2fQI7hQ4l5c6E08gYfQo1t0V8e9/5v8M1/MHEw5BwzD4C4Yl5/Ax47rJpBGNjFzFcMKUXgQkb0mKl8oT+nUuGlJGksr8d9o3rXbFqW3J+llx/gV4dM13t5FzD2rF6tFC4MlLmwuuI3+3t9s2xMwcA+L0aTd+k/s2Yl0pS4T2l57Ydcr+my5lOAkXKvH4GvCEQo5HBCfKGO8N8AYaHTDAZW5kb3N0cmVhbQplbmRvYmoKNSAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNzAgMDAwMDAgbiAKMDAwMDAwMDA5MyAwMDAwMCBuIAowMDAwMDAwMjg0IDAwMDAwIG4gCjAwMDAwMDA0MDMgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDYvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo0NTIKJSVFT0YK', type: 'application/pdf' }
+  }
+];
+
+export const initialMeetingRecords: MeetingRecord[] = [
+  {
+    id: 1,
+    title: 'Reunión de Planificación Semestral',
+    date: new Date('2024-07-25T00:00:00Z'),
+    startTime: '10:00',
+    endTime: '12:30',
+    details: 'Se discutieron los objetivos para el segundo semestre, la asignación de rotaciones y el calendario de exámenes.',
+    attendees: {
+      teachers: [1, 2],
+      students: [1, 2, 3],
+      externals: [],
+    },
+    streamingLink: 'https://meet.example.com/planificacion-2024-s2'
+  },
+  {
+    id: 2,
+    title: 'Análisis de Casos Clínicos Complejos',
+    date: new Date('2024-08-05T00:00:00Z'),
+    startTime: '09:00',
+    endTime: '10:30',
+    details: 'Revisión de casos de neurorradiología y musculoesquelético. Presentan Dr. Pérez y Residente Ana González.',
+    attendees: {
+      teachers: [1],
+      students: [1, 2],
+      externals: ['Dr. Juanito Perez (Neurorradiólogo invitado)'],
+    },
+  }
+];
+
+export const initialProfessionalActivities: ProfessionalActivity[] = [
+    {
+        id: 1,
+        studentId: 1,
+        type: 'Congreso',
+        title: 'Congreso Chileno de Radiología',
+        date: new Date('2024-10-20T00:00:00Z'),
+        location: 'Santiago, Chile',
+        participationType: 'Póster',
+    },
+    {
+        id: 2,
+        studentId: 1,
+        type: 'Publicación',
+        title: 'Análisis de patrones de realce en gliomas de alto grado mediante perfusión por RM',
+        date: new Date('2024-08-15T00:00:00Z'),
+        journal: 'Revista Chilena de Radiología',
+        doiLink: '10.1016/j.rchira.2024.08.001',
+    },
+    {
+        id: 3,
+        studentId: 2,
+        type: 'Rotación',
+        title: 'Rotación en Radiología Pediátrica',
+        date: new Date('2024-06-01T00:00:00Z'),
+        endDate: new Date('2024-06-30T00:00:00Z'),
+        institution: 'Hospital Clínico UC Christus',
+        supervisor: 'Dra. Isabela Reyes',
+    },
+    {
+        id: 4,
+        studentId: 2,
+        type: 'Presentación',
+        title: 'Presentación de caso: "Manejo endovascular de MAV cerebral"',
+        date: new Date('2024-09-05T00:00:00Z'),
+        eventName: 'Reunión Clínica Semanal',
+        location: 'Auditorio Hospital Regional',
+    }
+];
+
+export const initialTeacherProfessionalActivities: TeacherProfessionalActivity[] = [
+    {
+        id: 1,
+        teacherId: 1,
+        type: 'Publicación',
+        title: 'Deep Learning for Early Detection of Lung Nodules in CT Scans',
+        date: new Date('2023-11-20T00:00:00Z'),
+        journal: 'Journal of Digital Imaging',
+        doiLink: '10.1007/s10278-023-0081-3',
+    },
+    {
+        id: 2,
+        teacherId: 2,
+        type: 'Congreso',
+        title: 'Radiological Society of North America (RSNA) Annual Meeting',
+        date: new Date('2023-11-26T00:00:00Z'),
+        location: 'Chicago, IL, USA',
+        participationType: 'Expositor',
+    },
+    {
+        id: 3,
+        teacherId: 1,
+        type: 'Investigación',
+        title: 'Fondo Nacional de Desarrollo Científico y Tecnológico (FONDECYT)',
+        date: new Date('2024-03-15T00:00:00Z'),
+        project: 'Optimización de secuencias de resonancia magnética para la caracterización de lesiones hepáticas',
+        role: 'Investigador Principal',
+    }
+];
+
+export const initialPersonalDocuments: PersonalDocument[] = [
+    {
+        id: 1,
+        ownerId: 1,
+        ownerType: 'student',
+        title: 'Certificado de Título',
+        description: 'Certificado de Médico Cirujano de la Universidad de Chile.',
+        uploadDate: new Date('2022-03-10T00:00:00Z'),
+        file: { name: 'Cert_Titulo_Ana_Gonzalez.pdf', url: 'data:application/pdf;base64,JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFIvTGFuZyhlcy1DTClgPj4KZW5kb2JqCjIgMCBvYmoKPDwvVHlwZS9QYWdlcy9Db3VudCAxL0tpZHNbMyAwIFJdPj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgNSAwIFI+Pj4+L01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUi9Hcm91cDw8L1R5cGUvR3JvdXAvUy9UcmFuc3BhcmVuY3kvQ1MvRGV2aWNlUkdCPj4vVGFicy9TPj4KZW5kb2JqCjQgMCBvYmoKPDwvRmlsdGVyL0ZsYXRlRGVjb2RlL0xlbmd0aCA4Nj4+CnN0cmVhbQp4nE2NQQrCMBBF95JgMNiAIOJd6gM8g2fQI7hQ4l5c6E08gYfQo1t0V8e9/5v8M1/MHEw5BwzD4C4Yl5/Ax47rJpBGNjFzFcMKUXgQkb0mKl8oT+nUuGlJGksr8d9o3rXbFqW3J+llx/gV4dM13t5FzD2rF6tFC4MlLmwuuI3+3t9s2xMwcA+L0aTd+k/s2Yl0pS4T2l57Ydcr+my5lOAkXKvH4GvCEQo5HBCfKGO8N8AYaHTDAZW5kb3N0cmVhbQplbmRvYmoKNSAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNzAgMDAwMDAgbiAKMDAwMDAwMDA5MyAwMDAwMCBuIAowMDAwMDAwMjg0IDAwMDAwIG4gCjAwMDAwMDA0MDMgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDYvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo0NTIKJSVFT0YK', type: 'application/pdf' }
+    },
+    {
+        id: 2,
+        ownerId: 1,
+        ownerType: 'teacher',
+        title: 'Certificado de Postgrado',
+        description: 'Doctorado en Física Médica, Stanford University.',
+        uploadDate: new Date('2010-06-20T00:00:00Z'),
+        file: { name: 'Cert_PhD_Ricardo_Perez.pdf', url: 'data:application/pdf;base64,JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFIvTGFuZyhlcy1DTClgPj4KZW5kb2JqCjIgMCBvYmoKPDwvVHlwZS9QYWdlcy9Db3VudCAxL0tpZHNbMyAwIFJdPj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9SZXNvdXJjZXM8PC9Gb250PDwvRjEgNSAwIFI+Pj4+L01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUi9Hcm91cDw8L1R5cGUvR3JvdXAvUy9UcmFuc3BhcmVuY3kvQ1MvRGV2aWNlUkdCPj4vVGFicy9TPj4KZW5kb2JqCjQgMCBvYmoKPDwvRmlsdGVyL0ZsYXRlRGVjb2RlL0xlbmd0aCA4Nj4+CnN0cmVhbQp4nE2NQQrCMBBF95JgMNiAIOJd6gM8g2fQI7hQ4l5c6E08gYfQo1t0V8e9/5v8M1/MHEw5BwzD4C4Yl5/Ax47rJpBGNjFzFcMKUXgQkb0mKl8oT+nUuGlJGksr8d9o3rXbFqW3J+llx/gV4dM13t5FzD2rF6tFC4MlLmwuuI3+3t9s2xMwcA+L0aTd+k/s2Yl0pS4T2l57Ydcr+my5lOAkXKvH4GvCEQo5HBCfKGO8N8AYaHTDAZW5kb3N0cmVhbQplbmRvYmoKNSAwIG9iago8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE1IDAwMDAwIG4gCjAwMDAwMDAwNzAgMDAwMDAgbiAKMDAwMDAwMDA5MyAwMDAwMCBuIAowMDAwMDAwMjg0IDAwMDAwIG4gCjAwMDAwMDA0MDMgMDAwMDAgbiAKdHJhaWxlcgo8PC9TaXplIDYvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgo0NTIKJSVFT0YK', type: 'application/pdf' }
+    }
 ];

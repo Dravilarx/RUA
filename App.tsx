@@ -1,7 +1,6 @@
-
 import React, { useState, FC, ChangeEvent, useMemo, useEffect, useRef } from 'react';
-import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport } from './types';
-import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports } from './data';
+import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, ActivityType, TeacherProfessionalActivity, TeacherActivityType, PersonalDocument } from './types';
+import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports, initialOfficialDocuments, initialMeetingRecords, initialProfessionalActivities, initialTeacherProfessionalActivities, initialPersonalDocuments } from './data';
 
 // --- Helper & Utility Functions ---
 
@@ -123,7 +122,18 @@ const NewspaperIcon: FC<{ className?: string }> = ({ className }) => (
 const SendIcon: FC<{ className?: string }> = ({ className }) => (
     <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
 );
-
+const FileTextIcon: FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+);
+const BriefcaseIcon: FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+);
+const LinkIcon: FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
+);
+const AwardIcon: FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 17 17 23 15.79 13.88"></polyline></svg>
+);
 
 // --- Generic Components ---
 
@@ -155,6 +165,30 @@ const Modal: FC<{ isOpen: boolean; onClose: () => void; title: string; children:
       </div>
     </div>
   );
+};
+
+const FilePreviewModal: FC<{ file: { name: string; url: string; type: string } | null; onClose: () => void; }> = ({ file, onClose }) => {
+    if (!file) return null;
+
+    return (
+        <Modal isOpen={!!file} onClose={onClose} title={file.name} size="5xl">
+            <div className="w-full h-[75vh]">
+                {file.type.startsWith('image/') ? (
+                    <img src={file.url} alt={file.name} className="max-w-full max-h-full mx-auto object-contain" />
+                ) : file.type === 'application/pdf' ? (
+                    <iframe src={file.url} title={file.name} className="w-full h-full border-0"></iframe>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full bg-slate-100 rounded-lg">
+                        <p className="text-lg text-medium-text">No se puede previsualizar este tipo de archivo.</p>
+                        <p className="text-sm text-light-text">({file.type})</p>
+                        <a href={file.url} download={file.name} className="mt-4 bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg">
+                            Descargar Archivo
+                        </a>
+                    </div>
+                )}
+            </div>
+        </Modal>
+    );
 };
 
 const ImageUploader: FC<{ photo?: string; onPhotoChange: (base64: string) => void }> = ({ photo, onPhotoChange }) => {
@@ -1195,6 +1229,217 @@ const ReportModal: FC<{
 };
 
 
+const ProfessionalActivityForm: FC<{
+    studentId: number;
+    onSave: (activity: Omit<ProfessionalActivity, 'id'>) => void;
+    onCancel: () => void;
+}> = ({ studentId, onSave, onCancel }) => {
+    const [activityType, setActivityType] = useState<ActivityType>('Congreso');
+    const [formData, setFormData] = useState<any>({
+        title: '',
+        date: new Date().toISOString().split('T')[0]
+    });
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value, type } = e.target;
+        const isNumber = (e.target as HTMLInputElement).type === 'number';
+        setFormData((prev: any) => ({
+            ...prev,
+            [name]: isNumber ? parseInt(value) : value
+        }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const activityData = {
+            ...formData,
+            studentId: studentId,
+            type: activityType,
+            date: new Date(formData.date),
+            endDate: formData.endDate ? new Date(formData.endDate) : undefined,
+        };
+        onSave(activityData);
+    };
+
+    const commonFields = (
+         <>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Título / Nombre</label>
+                <input type="text" name="title" onChange={handleChange} value={formData.title || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Fecha</label>
+                <input type="date" name="date" onChange={handleChange} value={formData.date || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            </div>
+        </>
+    );
+
+    const renderSpecificFields = () => {
+        switch(activityType) {
+            case 'Congreso':
+                return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Lugar</label>
+                            <input type="text" name="location" onChange={handleChange} value={formData.location || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Tipo de Participación</label>
+                            <select name="participationType" onChange={handleChange} value={formData.participationType || 'Asistente'} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+                                <option>Asistente</option>
+                                <option>Póster</option>
+                                <option>Presentación Oral</option>
+                            </select>
+                        </div>
+                    </>
+                );
+            case 'Publicación':
+                return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Revista / Conferencia</label>
+                            <input type="text" name="journal" onChange={handleChange} value={formData.journal || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">DOI / Link</label>
+                            <input type="text" name="doiLink" onChange={handleChange} value={formData.doiLink || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                        </div>
+                    </>
+                );
+            case 'Presentación':
+                 return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Nombre del Evento</label>
+                            <input type="text" name="eventName" onChange={handleChange} value={formData.eventName || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Lugar</label>
+                            <input type="text" name="location" onChange={handleChange} value={formData.location || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                        </div>
+                    </>
+                );
+            case 'Vinculación':
+                return (
+                     <>
+                        <div className="col-span-2">
+                            <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
+                            <textarea name="description" onChange={handleChange} value={formData.description || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Horas</label>
+                            <input type="number" name="hours" onChange={handleChange} value={formData.hours || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                        </div>
+                    </>
+                );
+            case 'Rotación':
+                 return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Fecha de Término</label>
+                            <input type="date" name="endDate" onChange={handleChange} value={formData.endDate || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Institución</label>
+                            <input type="text" name="institution" onChange={handleChange} value={formData.institution || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Supervisor</label>
+                            <input type="text" name="supervisor" onChange={handleChange} value={formData.supervisor || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                        </div>
+                    </>
+                );
+            case 'Otro':
+                return (
+                    <div className="col-span-2">
+                        <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
+                        <textarea name="description" onChange={handleChange} value={formData.description || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Tipo de Actividad</label>
+                <select value={activityType} onChange={e => setActivityType(e.target.value as ActivityType)} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+                    <option>Congreso</option>
+                    <option>Publicación</option>
+                    <option>Presentación</option>
+                    <option>Vinculación</option>
+                    <option>Rotación</option>
+                    <option>Otro</option>
+                </select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+               {commonFields}
+               {renderSpecificFields()}
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+                <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
+                <button type="submit" className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium">Guardar Actividad</button>
+            </div>
+        </form>
+    );
+};
+
+const PersonalDocumentForm: FC<{ 
+    onSave: (document: Omit<PersonalDocument, 'id' | 'ownerId' | 'ownerType'>) => void; 
+    onCancel: () => void;
+    onPreviewFile: (file: { name: string; url: string; type: string }) => void;
+}> = ({ onSave, onCancel, onPreviewFile }) => {
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [file, setFile] = useState<{ name: string; url: string; type: string } | null>(null);
+
+    const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+        const uploadedFile = e.target.files?.[0];
+        if (uploadedFile) {
+            const base64Url = await blobToBase64(uploadedFile);
+            setFile({ name: uploadedFile.name, url: base64Url, type: uploadedFile.type });
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!file) {
+            alert("Por favor, adjunte un archivo.");
+            return;
+        }
+        onSave({ title, description, file, uploadDate: new Date() });
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Título del Documento</label>
+                <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Archivo</label>
+                <input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" required />
+                {file && (
+                    <div className="flex items-center justify-between text-sm text-medium-text mt-2 bg-slate-100 p-2 rounded-md">
+                        <span>{file.name}</span>
+                        <button type="button" onClick={() => onPreviewFile(file)} className="text-primary hover:underline font-semibold">Previsualizar</button>
+                    </div>
+                )}
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+                <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
+                <button type="submit" className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium">Guardar Documento</button>
+            </div>
+        </form>
+    );
+};
+
 const StudentRecordPage: FC<{
     students: Student[];
     teachers: Teacher[];
@@ -1203,12 +1448,19 @@ const StudentRecordPage: FC<{
     anotaciones: Anotacion[];
     setAnotaciones: React.Dispatch<React.SetStateAction<Anotacion[]>>;
     gradeReports: GradeReport[];
+    professionalActivities: ProfessionalActivity[];
+    setProfessionalActivities: React.Dispatch<React.SetStateAction<ProfessionalActivity[]>>;
+    personalDocuments: PersonalDocument[];
+    setPersonalDocuments: React.Dispatch<React.SetStateAction<PersonalDocument[]>>;
     onOpenReportModal: (data: { grade: Grade, report: GradeReport }) => void;
     onAcceptReport: (reportId: number) => void;
     addActivityLog: (desc: string) => void;
-}> = ({ students, teachers, subjects, grades, anotaciones, setAnotaciones, gradeReports, onOpenReportModal, onAcceptReport, addActivityLog }) => {
+    onPreviewFile: (file: { name: string; url: string; type: string }) => void;
+}> = ({ students, teachers, subjects, grades, anotaciones, setAnotaciones, gradeReports, professionalActivities, setProfessionalActivities, personalDocuments, setPersonalDocuments, onOpenReportModal, onAcceptReport, addActivityLog, onPreviewFile }) => {
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+    const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
 
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
     const subjectMap = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
@@ -1221,11 +1473,13 @@ const StudentRecordPage: FC<{
             s.rut.includes(searchTerm)
         ), [students, searchTerm]);
 
-    const [activeTab, setActiveTab] = useState<'Calificaciones' | 'Anotaciones' | 'Reportes'>('Calificaciones');
+    const [activeTab, setActiveTab] = useState<'Calificaciones' | 'Anotaciones' | 'Reportes' | 'Actividad Profesional' | 'Documentos Personales'>('Calificaciones');
 
     const studentGrades = useMemo(() => grades.filter(g => g.studentId === selectedStudentId), [grades, selectedStudentId]);
     const studentAnotaciones = useMemo(() => anotaciones.filter(a => a.studentId === selectedStudentId).sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()), [anotaciones, selectedStudentId]);
     const studentReports = useMemo(() => gradeReports.filter(r => r.studentId === selectedStudentId).sort((a,b) => b.generationDate.getTime() - a.generationDate.getTime()), [gradeReports, selectedStudentId]);
+    const studentProfessionalActivities = useMemo(() => professionalActivities.filter(a => a.studentId === selectedStudentId).sort((a,b) => b.date.getTime() - a.date.getTime()), [professionalActivities, selectedStudentId]);
+    const studentPersonalDocuments = useMemo(() => personalDocuments.filter(d => d.ownerType === 'student' && d.ownerId === selectedStudentId).sort((a,b) => b.uploadDate.getTime() - a.uploadDate.getTime()), [personalDocuments, selectedStudentId]);
     
     const [newAnotacion, setNewAnotacion] = useState({ type: 'Observación' as Anotacion['type'], text: '', autorId: teachers[0]?.id || 0 });
 
@@ -1245,6 +1499,27 @@ const StudentRecordPage: FC<{
         setNewAnotacion({ type: 'Observación', text: '', autorId: teachers[0]?.id || 0 });
     };
 
+    const handleSaveActivity = (activityData: Omit<ProfessionalActivity, 'id'>) => {
+        const newActivity = { ...activityData, id: Date.now() } as ProfessionalActivity;
+        setProfessionalActivities(prev => [newActivity, ...prev]);
+        addActivityLog(`Nueva actividad profesional registrada para ${selectedStudent?.name} ${selectedStudent?.lastName}.`);
+        setIsActivityModalOpen(false);
+    };
+    
+    const handleSaveDocument = (docData: Omit<PersonalDocument, 'id' | 'ownerId' | 'ownerType'>) => {
+        if(!selectedStudentId) return;
+        const newDocument = {
+            ...docData,
+            id: Date.now(),
+            ownerId: selectedStudentId,
+            ownerType: 'student' as const
+        };
+        setPersonalDocuments(prev => [newDocument, ...prev]);
+        addActivityLog(`Nuevo documento personal subido para ${selectedStudent?.name} ${selectedStudent?.lastName}.`);
+        setIsDocumentModalOpen(false);
+    }
+
+
     const getAnotacionTypeColor = (type: Anotacion['type']) => {
         switch(type) {
             case 'Positiva': return 'bg-green-100 text-green-800 border-green-300';
@@ -1260,13 +1535,40 @@ const StudentRecordPage: FC<{
             onOpenReportModal({ grade, report });
         }
     };
+    
+    const renderActivityDetails = (activity: ProfessionalActivity) => {
+        const common = <p className="text-sm text-medium-text">{activity.date.toLocaleDateString('es-CL')}</p>;
+        switch (activity.type) {
+            case 'Congreso':
+                return <>{common}<p className="text-sm text-dark-text">{activity.location} - <span className="font-semibold">{activity.participationType}</span></p></>;
+            case 'Publicación':
+                return <>{common}<p className="text-sm text-dark-text italic">{activity.journal}</p>{activity.doiLink && <a href={activity.doiLink} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">Ver Publicación</a>}</>;
+            case 'Rotación':
+                return <>{common}<p className="text-sm text-dark-text">{activity.institution} (Supervisor: {activity.supervisor})</p><p className="text-xs text-medium-text">Término: {activity.endDate.toLocaleDateString('es-CL')}</p></>;
+            case 'Presentación':
+                 return <>{common}<p className="text-sm text-dark-text">{activity.eventName} ({activity.location})</p></>;
+            default:
+                return <>{common}<p className="text-sm text-dark-text">{activity.description}</p></>;
+        }
+    };
+    
+    const getActivityIcon = (type: ActivityType) => {
+        switch(type) {
+            case 'Congreso': return <BriefcaseIcon className="w-5 h-5 text-indigo-500" />;
+            case 'Publicación': return <FileTextIcon className="w-5 h-5 text-green-500" />;
+            case 'Presentación': return <UsersIcon className="w-5 h-5 text-blue-500" />;
+            case 'Rotación': return <UserIcon className="w-5 h-5 text-amber-500" />;
+            default: return <AwardIcon className="w-5 h-5 text-slate-500" />;
+        }
+    }
+
 
     if (selectedStudent) {
         const { status, color } = getResidencyStatus(selectedStudent.admissionYear);
         const age = calculateAge(selectedStudent.birthDate);
         return (
-            <div>
-                 <button onClick={() => setSelectedStudentId(null)} className="flex items-center text-sm font-medium text-primary hover:text-primary-hover mb-6">
+            <>
+                <button onClick={() => setSelectedStudentId(null)} className="flex items-center text-sm font-medium text-primary hover:text-primary-hover mb-6">
                     <ChevronLeftIcon className="w-5 h-5 mr-1" />
                     Volver a la lista de alumnos
                 </button>
@@ -1291,6 +1593,8 @@ const StudentRecordPage: FC<{
                         <button onClick={() => setActiveTab('Calificaciones')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Calificaciones' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Calificaciones</button>
                         <button onClick={() => setActiveTab('Anotaciones')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Anotaciones' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Anotaciones</button>
                         <button onClick={() => setActiveTab('Reportes')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Reportes' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Reportes</button>
+                        <button onClick={() => setActiveTab('Actividad Profesional')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Actividad Profesional' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Actividad Profesional</button>
+                        <button onClick={() => setActiveTab('Documentos Personales')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Documentos Personales' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Documentos Personales</button>
                     </nav>
                 </div>
                 
@@ -1407,7 +1711,7 @@ const StudentRecordPage: FC<{
                                                         {report.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-4">
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                                                     <button onClick={() => handleViewReport(report)} className="font-medium text-primary hover:text-primary-hover">
                                                         Ver Reporte
                                                     </button>
@@ -1425,8 +1729,80 @@ const StudentRecordPage: FC<{
                             </table>
                         </div>
                     )}
+                    {activeTab === 'Actividad Profesional' && (
+                        <div>
+                            <div className="flex justify-end mb-4">
+                                <button onClick={() => setIsActivityModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm">
+                                    <PlusIcon className="w-4 h-4 mr-2" />
+                                    Agregar Actividad
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                {studentProfessionalActivities.map(activity => (
+                                     <div key={activity.id} className="bg-white p-4 rounded-lg shadow-md border flex items-start space-x-4">
+                                        <div className="flex-shrink-0 bg-slate-100 p-2 rounded-full">
+                                            {getActivityIcon(activity.type)}
+                                        </div>
+                                        <div className="flex-grow">
+                                            <h3 className="font-bold text-dark-text">{activity.title}</h3>
+                                            {renderActivityDetails(activity)}
+                                        </div>
+                                        <span className="text-xs font-semibold text-medium-text bg-slate-100 px-2 py-1 rounded-full">{activity.type}</span>
+                                    </div>
+                                ))}
+                                {studentProfessionalActivities.length === 0 && <p className="text-center py-8 text-medium-text">No hay actividades profesionales registradas.</p>}
+                            </div>
+                        </div>
+                    )}
+                     {activeTab === 'Documentos Personales' && (
+                        <div>
+                             <div className="flex justify-end mb-4">
+                                <button onClick={() => setIsDocumentModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm">
+                                    <PlusIcon className="w-4 h-4 mr-2" />
+                                    Subir Documento
+                                </button>
+                            </div>
+                             <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                                <table className="min-w-full divide-y divide-slate-200">
+                                     <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Título</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Fecha de Subida</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-medium-text uppercase tracking-wider">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-slate-200">
+                                        {studentPersonalDocuments.map(doc => (
+                                            <tr key={doc.id}>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm font-medium text-dark-text">{doc.title}</p>
+                                                    <p className="text-sm text-medium-text">{doc.description}</p>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{new Date(doc.uploadDate).toLocaleDateString('es-CL')}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                                                    <button onClick={() => onPreviewFile(doc.file)} className="text-primary hover:text-primary-hover">Previsualizar</button>
+                                                    <a href={doc.file.url} download={doc.file.name} className="text-primary hover:text-primary-hover">Descargar</a>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {studentPersonalDocuments.length === 0 && (<tr><td colSpan={3} className="text-center py-4 text-medium-text">No hay documentos personales.</td></tr>)}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            </div>
+                <Modal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title="Registrar Actividad Profesional">
+                    <ProfessionalActivityForm 
+                        studentId={selectedStudentId}
+                        onSave={handleSaveActivity}
+                        onCancel={() => setIsActivityModalOpen(false)}
+                    />
+                </Modal>
+                 <Modal isOpen={isDocumentModalOpen} onClose={() => setIsDocumentModalOpen(false)} title="Subir Documento Personal">
+                    <PersonalDocumentForm onSave={handleSaveDocument} onCancel={() => setIsDocumentModalOpen(false)} onPreviewFile={onPreviewFile} />
+                </Modal>
+            </>
         )
     }
 
@@ -1458,9 +1834,9 @@ const StudentRecordPage: FC<{
         </div>
     );
 };
-// FIX: Implement functional form for adding new calendar events.
-const EventForm: FC<{ onSave: (event: Omit<CalendarEvent, 'id'>) => void; onCancel: () => void }> = ({ onSave, onCancel }) => {
-  const [title, setTitle] = useState('');
+
+const EventForm: FC<{ event?: CalendarEvent, onSave: (event: Omit<CalendarEvent, 'id'>) => void; onCancel: () => void }> = ({ event, onSave, onCancel }) => {
+  const [title, setTitle] = useState(event?.title || '');
 
   const toDateTimeLocal = (date: Date) => {
     const ten = (i: number) => (i < 10 ? '0' : '') + i;
@@ -1472,9 +1848,10 @@ const EventForm: FC<{ onSave: (event: Omit<CalendarEvent, 'id'>) => void; onCanc
     return `${YYYY}-${MM}-${DD}T${HH}:${II}`;
   };
 
-  const [start, setStart] = useState(toDateTimeLocal(new Date()));
-  const [end, setEnd] = useState(toDateTimeLocal(new Date()));
-  const [type, setType] = useState<CalendarEvent['type']>('Evento');
+  const [start, setStart] = useState(toDateTimeLocal(event?.start || new Date()));
+  const [end, setEnd] = useState(toDateTimeLocal(event?.end || new Date()));
+  const [type, setType] = useState<CalendarEvent['type']>(event?.type || 'Evento');
+  const [streamingLink, setStreamingLink] = useState(event?.streamingLink || '');
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1482,7 +1859,7 @@ const EventForm: FC<{ onSave: (event: Omit<CalendarEvent, 'id'>) => void; onCanc
         alert("La fecha de inicio no puede ser posterior a la fecha de término.");
         return;
     }
-    onSave({ title, start: new Date(start), end: new Date(end), type });
+    onSave({ title, start: new Date(start), end: new Date(end), type, streamingLink });
   };
 
   return (
@@ -1510,6 +1887,10 @@ const EventForm: FC<{ onSave: (event: Omit<CalendarEvent, 'id'>) => void; onCanc
             <option>Feriado</option>
         </select>
       </div>
+      <div>
+        <label className="block text-sm font-medium text-medium-text mb-1">Link de Reunión (Opcional)</label>
+        <input type="url" value={streamingLink} onChange={e => setStreamingLink(e.target.value)} placeholder="https://meet.example.com/..." className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+      </div>
       <div className="flex justify-end space-x-3 pt-4">
             <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
             <button type="submit" className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium">Agregar Evento</button>
@@ -1518,7 +1899,6 @@ const EventForm: FC<{ onSave: (event: Omit<CalendarEvent, 'id'>) => void; onCanc
   );
 };
 
-// --- Calendar Page ---
 const CalendarPage: FC<{
     events: CalendarEvent[],
     setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>,
@@ -1580,7 +1960,12 @@ const CalendarPage: FC<{
                                 <li key={event.id} className="flex items-center space-x-4 p-2 rounded-md hover:bg-slate-50">
                                     <div className={`w-3 h-3 rounded-full flex-shrink-0 ${getEventTypeColor(event.type)}`}></div>
                                     <div className="font-semibold text-medium-text w-28 text-sm">{formatDateRange(event.start, event.end)}</div>
-                                    <div className="text-dark-text text-sm">{event.title}</div>
+                                    <div className="text-dark-text text-sm flex-grow">{event.title}</div>
+                                    {event.streamingLink && (
+                                        <a href={event.streamingLink} target="_blank" rel="noopener noreferrer" title="Unirse a la reunión" className="text-primary hover:text-primary-hover">
+                                            <LinkIcon className="w-5 h-5"/>
+                                        </a>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -1594,8 +1979,11 @@ const CalendarPage: FC<{
     );
 };
 
-// FIX: Implement functional form for adding new news articles with attachments.
-const NewsForm: FC<{ onSave: (article: Omit<NewsArticle, 'id' | 'date'>) => void; onCancel: () => void }> = ({ onSave, onCancel }) => {
+const NewsForm: FC<{ 
+    onSave: (article: Omit<NewsArticle, 'id' | 'date'>) => void; 
+    onCancel: () => void;
+    onPreviewFile: (file: { name: string; url: string; type: string }) => void;
+}> = ({ onSave, onCancel, onPreviewFile }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [author, setAuthor] = useState('Dirección de Postgrado');
@@ -1655,10 +2043,13 @@ const NewsForm: FC<{ onSave: (article: Omit<NewsArticle, 'id' | 'date'>) => void
             <div className="mt-2 space-y-2">
                 {attachments.map((file, index) => (
                     <div key={index} className="flex items-center justify-between bg-slate-100 p-2 rounded">
-                        <span className="text-sm text-dark-text">{file.name}</span>
-                        <button type="button" onClick={() => removeAttachment(index)} className="text-red-500 hover:text-red-700">
-                            <TrashIcon className="w-4 h-4" />
-                        </button>
+                        <span className="text-sm text-dark-text truncate pr-2">{file.name}</span>
+                        <div className='flex items-center space-x-2 flex-shrink-0'>
+                            <button type='button' onClick={() => onPreviewFile(file)} className='text-primary hover:underline text-sm font-semibold'>Ver</button>
+                            <button type="button" onClick={() => removeAttachment(index)} className="text-red-500 hover:text-red-700">
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -1671,12 +2062,12 @@ const NewsForm: FC<{ onSave: (article: Omit<NewsArticle, 'id' | 'date'>) => void
   );
 };
 
-// --- News Page ---
 const NewsPage: FC<{
     articles: NewsArticle[],
     setArticles: React.Dispatch<React.SetStateAction<NewsArticle[]>>,
     addActivityLog: (desc: string) => void,
-}> = ({ articles, setArticles, addActivityLog }) => {
+    onPreviewFile: (file: { name: string; url: string; type: string }) => void;
+}> = ({ articles, setArticles, addActivityLog, onPreviewFile }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
 
@@ -1719,12 +2110,16 @@ const NewsPage: FC<{
                         <p className="text-sm text-medium-text">{selectedArticle.author} &bull; {selectedArticle.date.toLocaleDateString('es-CL')}</p>
                         <p className="text-dark-text whitespace-pre-wrap">{selectedArticle.content}</p>
                         {selectedArticle.attachments && selectedArticle.attachments.length > 0 && (
-                            <div>
+                            <div className='pt-4 border-t'>
                                 <h4 className="font-semibold text-dark-text mb-2">Archivos Adjuntos:</h4>
                                 <ul className="space-y-2">
                                     {selectedArticle.attachments.map((file, index) => (
-                                        <li key={index}>
-                                            <a href={file.url} download={file.name} className="text-primary hover:underline">{file.name}</a>
+                                        <li key={index} className="flex items-center justify-between bg-slate-100 p-2 rounded-md">
+                                            <span className='text-sm text-dark-text'>{file.name}</span>
+                                            <div className='space-x-4'>
+                                                <button onClick={() => onPreviewFile(file)} className="text-primary hover:underline text-sm font-semibold">Previsualizar</button>
+                                                <a href={file.url} download={file.name} className="text-primary hover:underline text-sm font-semibold">Descargar</a>
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
@@ -1735,11 +2130,573 @@ const NewsPage: FC<{
             </Modal>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nueva Noticia">
-                 <NewsForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} />
+                 <NewsForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} onPreviewFile={onPreviewFile} />
             </Modal>
         </>
     );
 };
+
+// --- Official Documents Module ---
+
+const DocumentForm: FC<{ 
+    onSave: (document: Omit<OfficialDocument, 'id'>) => void; 
+    onCancel: () => void;
+    onPreviewFile: (file: { name: string; url: string; type: string }) => void;
+}> = ({ onSave, onCancel, onPreviewFile }) => {
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [author, setAuthor] = useState('');
+    const [file, setFile] = useState<{ name: string; url: string; type: string } | null>(null);
+
+    const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+        const uploadedFile = e.target.files?.[0];
+        if (uploadedFile) {
+            const base64Url = await blobToBase64(uploadedFile);
+            setFile({ name: uploadedFile.name, url: base64Url, type: uploadedFile.type });
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!file) {
+            alert("Por favor, adjunte un archivo.");
+            return;
+        }
+        onSave({ title, description, author, file, uploadDate: new Date() });
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Título del Documento</label>
+                <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Autor / Origen</label>
+                <input type="text" value={author} onChange={e => setAuthor(e.target.value)} placeholder="Ej: Dirección de Postgrado" className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Archivo</label>
+                <input type="file" onChange={handleFileChange} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-primary hover:file:bg-blue-100" required />
+                {file && (
+                     <div className="flex items-center justify-between text-sm text-medium-text mt-2 bg-slate-100 p-2 rounded-md">
+                        <span>{file.name}</span>
+                        <button type="button" onClick={() => onPreviewFile(file)} className="text-primary hover:underline font-semibold">Previsualizar</button>
+                    </div>
+                )}
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+                <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
+                <button type="submit" className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium">Guardar Documento</button>
+            </div>
+        </form>
+    );
+};
+
+const OfficialDocumentsPage: FC<{
+    documents: OfficialDocument[],
+    setDocuments: React.Dispatch<React.SetStateAction<OfficialDocument[]>>,
+    addActivityLog: (desc: string) => void,
+    onPreviewFile: (file: { name: string; url: string; type: string }) => void;
+}> = ({ documents, setDocuments, addActivityLog, onPreviewFile }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleSave = (documentData: Omit<OfficialDocument, 'id'>) => {
+        const newDocument = { ...documentData, id: Date.now() };
+        setDocuments(prev => [newDocument, ...prev].sort((a,b) => b.uploadDate.getTime() - a.uploadDate.getTime()));
+        addActivityLog(`Nuevo documento oficial '${newDocument.title}' ha sido agregado.`);
+        setIsModalOpen(false);
+    };
+
+    return (
+        <>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-dark-text">Documentos Oficiales</h1>
+                <button onClick={() => setIsModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                    <PlusIcon className="w-5 h-5 mr-2" />
+                    Subir Documento
+                </button>
+            </div>
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Título</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Autor</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Fecha de Subida</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-medium-text uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-slate-200">
+                        {documents.map(doc => (
+                            <tr key={doc.id} className="hover:bg-slate-50">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-dark-text">{doc.title}</div>
+                                    <div className="text-sm text-medium-text truncate max-w-xs">{doc.description}</div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{doc.author}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{new Date(doc.uploadDate).toLocaleDateString('es-CL')}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                                     <button onClick={() => onPreviewFile(doc.file)} className="text-primary hover:text-primary-hover">Previsualizar</button>
+                                    <a href={doc.file.url} download={doc.file.name} className="text-primary hover:text-primary-hover">
+                                        Descargar
+                                    </a>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nuevo Documento Oficial">
+                <DocumentForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} onPreviewFile={onPreviewFile} />
+            </Modal>
+        </>
+    );
+};
+
+// --- Meeting Records Module ---
+
+const MeetingForm: FC<{
+    onSave: (meeting: Omit<MeetingRecord, 'id'>) => void;
+    onCancel: () => void;
+    students: Student[];
+    teachers: Teacher[];
+}> = ({ onSave, onCancel, students, teachers }) => {
+    const [formState, setFormState] = useState<Omit<MeetingRecord, 'id'>>({
+        title: '',
+        date: new Date(),
+        startTime: '09:00',
+        endTime: '10:00',
+        details: '',
+        attendees: { teachers: [], students: [], externals: [] },
+        streamingLink: ''
+    });
+    const [externalsInput, setExternalsInput] = useState('');
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormState(prev => ({...prev, [name]: value }));
+    };
+
+    const handleMultiSelectChange = (e: ChangeEvent<HTMLSelectElement>, type: 'teachers' | 'students') => {
+        const selectedIds = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+        setFormState(prev => ({
+            ...prev,
+            attendees: { ...prev.attendees, [type]: selectedIds }
+        }));
+    };
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const externals = externalsInput.split(',').map(s => s.trim()).filter(Boolean);
+        onSave({ ...formState, attendees: { ...formState.attendees, externals } });
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Título de la Reunión</label>
+                <input type="text" name="title" value={formState.title} onChange={handleChange} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div>
+                    <label className="block text-sm font-medium text-medium-text mb-1">Fecha</label>
+                    <input type="date" name="date" value={formState.date.toISOString().split('T')[0]} onChange={e => setFormState(p => ({...p, date: new Date(e.target.value)}))} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                 </div>
+                 <div>
+                    <label className="block text-sm font-medium text-medium-text mb-1">Hora Inicio</label>
+                    <input type="time" name="startTime" value={formState.startTime} onChange={handleChange} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                 </div>
+                 <div>
+                    <label className="block text-sm font-medium text-medium-text mb-1">Hora Término</label>
+                    <input type="time" name="endTime" value={formState.endTime} onChange={handleChange} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                 </div>
+             </div>
+             <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Detalles / Puntos Tratados</label>
+                <textarea name="details" value={formState.details} onChange={handleChange} rows={5} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-medium-text mb-1">Asistentes (Docentes)</label>
+                    <select multiple value={formState.attendees.teachers.map(String)} onChange={e => handleMultiSelectChange(e, 'teachers')} className="w-full h-32 p-2 border-slate-300 rounded-md shadow-sm">
+                        {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}
+                    </select>
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-medium-text mb-1">Asistentes (Alumnos)</label>
+                    <select multiple value={formState.attendees.students.map(String)} onChange={e => handleMultiSelectChange(e, 'students')} className="w-full h-32 p-2 border-slate-300 rounded-md shadow-sm">
+                        {students.map(s => <option key={s.id} value={s.id}>{s.name} {s.lastName}</option>)}
+                    </select>
+                </div>
+             </div>
+             <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Asistentes Externos (separados por coma)</label>
+                <input type="text" value={externalsInput} onChange={e => setExternalsInput(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+            </div>
+             <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Link de Reunión (Opcional)</label>
+                <input type="url" name="streamingLink" value={formState.streamingLink} onChange={handleChange} placeholder="https://meet.example.com/..." className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+                <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
+                <button type="submit" className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium">Guardar Reunión</button>
+            </div>
+        </form>
+    );
+};
+
+const MeetingRecordsPage: FC<{
+    meetings: MeetingRecord[];
+    setMeetings: React.Dispatch<React.SetStateAction<MeetingRecord[]>>;
+    students: Student[];
+    teachers: Teacher[];
+    addActivityLog: (desc: string) => void;
+}> = ({ meetings, setMeetings, students, teachers, addActivityLog }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    const studentMap = useMemo(() => new Map(students.map(s => [s.id, `${s.name} ${s.lastName}`])), [students]);
+    const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
+
+    const handleSave = (meetingData: Omit<MeetingRecord, 'id'>) => {
+        const newMeeting = { ...meetingData, id: Date.now() };
+        setMeetings(prev => [newMeeting, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
+        addActivityLog(`Nueva reunión '${newMeeting.title}' ha sido registrada.`);
+        setIsModalOpen(false);
+    };
+
+    return (
+        <>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-dark-text">Registro de Reuniones</h1>
+                <button onClick={() => setIsModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                    <PlusIcon className="w-5 h-5 mr-2" />
+                    Registrar Reunión
+                </button>
+            </div>
+            <div className="space-y-6">
+                {meetings.map(meeting => (
+                    <div key={meeting.id} className="bg-white p-6 rounded-lg shadow-md">
+                        <div className="flex justify-between items-start">
+                           <div>
+                                <h2 className="text-lg font-bold text-dark-text">{meeting.title}</h2>
+                                <p className="text-sm text-medium-text">{new Date(meeting.date).toLocaleDateString('es-CL')} | {meeting.startTime} - {meeting.endTime}</p>
+                           </div>
+                           {meeting.streamingLink && (
+                             <a href={meeting.streamingLink} target="_blank" rel="noopener noreferrer" title="Ir al link de la reunión" className="text-sm bg-primary-light text-primary font-semibold py-1 px-3 rounded-full hover:bg-indigo-200">
+                                Unirse
+                             </a>
+                           )}
+                        </div>
+                         <p className="mt-4 text-sm text-dark-text whitespace-pre-wrap">{meeting.details}</p>
+                         <div className="mt-4 pt-4 border-t">
+                            <h4 className="font-semibold text-sm text-dark-text">Asistentes:</h4>
+                            <ul className="text-sm text-medium-text list-disc list-inside mt-2">
+                                {meeting.attendees.teachers.map(id => <li key={`t-${id}`}>{teacherMap.get(id)} (Docente)</li>)}
+                                {meeting.attendees.students.map(id => <li key={`s-${id}`}>{studentMap.get(id)} (Alumno)</li>)}
+                                {meeting.attendees.externals.map((name, i) => <li key={`e-${i}`}>{name} (Externo)</li>)}
+                            </ul>
+                         </div>
+                    </div>
+                ))}
+            </div>
+             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Nueva Reunión" size="3xl">
+                <MeetingForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} students={students} teachers={teachers} />
+            </Modal>
+        </>
+    );
+};
+
+// --- Teacher Professional Activity Components ---
+
+const TeacherProfessionalActivityForm: FC<{
+    teacherId: number;
+    onSave: (activity: Omit<TeacherProfessionalActivity, 'id'>) => void;
+    onCancel: () => void;
+}> = ({ teacherId, onSave, onCancel }) => {
+    const [activityType, setActivityType] = useState<TeacherActivityType>('Congreso');
+    const [formData, setFormData] = useState<any>({
+        title: '',
+        date: new Date().toISOString().split('T')[0]
+    });
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData((prev: any) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const activityData = {
+            ...formData,
+            teacherId: teacherId,
+            type: activityType,
+            date: new Date(formData.date),
+        };
+        onSave(activityData);
+    };
+    
+    const commonFields = (
+        <>
+           <div>
+               <label className="block text-sm font-medium text-medium-text mb-1">Título / Nombre</label>
+               <input type="text" name="title" onChange={handleChange} value={formData.title || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+           </div>
+           <div>
+               <label className="block text-sm font-medium text-medium-text mb-1">Fecha</label>
+               <input type="date" name="date" onChange={handleChange} value={formData.date || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+           </div>
+       </>
+   );
+
+    const renderSpecificFields = () => {
+        switch(activityType) {
+            case 'Congreso': return (<>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Lugar</label><input type="text" name="location" onChange={handleChange} value={formData.location || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Participación</label><select name="participationType" onChange={handleChange} value={formData.participationType || 'Asistente'} className="w-full p-2 border-slate-300 rounded-md shadow-sm"><option>Asistente</option><option>Expositor</option><option>Organizador</option></select></div>
+            </>);
+            case 'Publicación': return (<>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Revista / Conferencia</label><input type="text" name="journal" onChange={handleChange} value={formData.journal || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">DOI / Link</label><input type="text" name="doiLink" onChange={handleChange} value={formData.doiLink || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" /></div>
+            </>);
+            case 'Presentación': return (<>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Nombre Evento</label><input type="text" name="eventName" onChange={handleChange} value={formData.eventName || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Lugar</label><input type="text" name="location" onChange={handleChange} value={formData.location || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" /></div>
+            </>);
+            case 'Investigación': return (<>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Proyecto</label><input type="text" name="project" onChange={handleChange} value={formData.project || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Rol</label><input type="text" name="role" onChange={handleChange} value={formData.role || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" /></div>
+            </>);
+            case 'Docencia': return (<>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Curso / Asignatura</label><input type="text" name="course" onChange={handleChange} value={formData.course || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
+                <div><label className="block text-sm font-medium text-medium-text mb-1">Institución</label><input type="text" name="institution" onChange={handleChange} value={formData.institution || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" /></div>
+            </>);
+            case 'Otro': return (<div className="col-span-2"><label className="block text-sm font-medium text-medium-text mb-1">Descripción</label><textarea name="description" onChange={handleChange} value={formData.description || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>);
+            default: return null;
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Tipo de Actividad</label>
+                <select value={activityType} onChange={e => setActivityType(e.target.value as TeacherActivityType)} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+                    <option>Congreso</option><option>Publicación</option><option>Presentación</option><option>Investigación</option><option>Docencia</option><option>Otro</option>
+                </select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+               {commonFields}
+               {renderSpecificFields()}
+            </div>
+            <div className="flex justify-end space-x-3 pt-4">
+                <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
+                <button type="submit" className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium">Guardar Actividad</button>
+            </div>
+        </form>
+    );
+};
+
+
+const TeacherRecordPage: FC<{
+    teachers: Teacher[];
+    subjects: Subject[];
+    teacherActivities: TeacherProfessionalActivity[];
+    setTeacherActivities: React.Dispatch<React.SetStateAction<TeacherProfessionalActivity[]>>;
+    personalDocuments: PersonalDocument[];
+    setPersonalDocuments: React.Dispatch<React.SetStateAction<PersonalDocument[]>>;
+    addActivityLog: (desc: string) => void;
+    onPreviewFile: (file: { name: string; url: string; type: string }) => void;
+}> = ({ teachers, subjects, teacherActivities, setTeacherActivities, personalDocuments, setPersonalDocuments, addActivityLog, onPreviewFile }) => {
+    const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+    const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+
+    const selectedTeacher = useMemo(() => teachers.find(t => t.id === selectedTeacherId), [teachers, selectedTeacherId]);
+
+    const filteredTeachers = useMemo(() =>
+        teachers.filter(t =>
+            `${t.name} ${t.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            t.rut.includes(searchTerm)
+        ), [teachers, searchTerm]);
+
+    const [activeTab, setActiveTab] = useState<'Asignaturas Asignadas' | 'Actividad Profesional' | 'Documentos Personales'>('Asignaturas Asignadas');
+
+    const teacherSubjects = useMemo(() => subjects.filter(s => s.teacherId === selectedTeacherId), [subjects, selectedTeacherId]);
+    const teacherProfessionalActivities = useMemo(() => teacherActivities.filter(a => a.teacherId === selectedTeacherId).sort((a, b) => b.date.getTime() - a.date.getTime()), [teacherActivities, selectedTeacherId]);
+    const teacherPersonalDocuments = useMemo(() => personalDocuments.filter(d => d.ownerType === 'teacher' && d.ownerId === selectedTeacherId).sort((a, b) => b.uploadDate.getTime() - a.uploadDate.getTime()), [personalDocuments, selectedTeacherId]);
+
+    const handleSaveActivity = (activityData: Omit<TeacherProfessionalActivity, 'id'>) => {
+        const newActivity = { ...activityData, id: Date.now() } as TeacherProfessionalActivity;
+        setTeacherActivities(prev => [newActivity, ...prev]);
+        addActivityLog(`Nueva actividad profesional registrada para el docente ${selectedTeacher?.name} ${selectedTeacher?.lastName}.`);
+        setIsActivityModalOpen(false);
+    };
+
+    const handleSaveDocument = (docData: Omit<PersonalDocument, 'id' | 'ownerId' | 'ownerType'>) => {
+        if (!selectedTeacherId) return;
+        const newDocument = { ...docData, id: Date.now(), ownerId: selectedTeacherId, ownerType: 'teacher' as const };
+        setPersonalDocuments(prev => [newDocument, ...prev]);
+        addActivityLog(`Nuevo documento personal subido para ${selectedTeacher?.name} ${selectedTeacher?.lastName}.`);
+        setIsDocumentModalOpen(false);
+    }
+    
+    if (selectedTeacher) {
+        const age = calculateAge(selectedTeacher.birthDate);
+        return (
+            <>
+                <button onClick={() => setSelectedTeacherId(null)} className="flex items-center text-sm font-medium text-primary hover:text-primary-hover mb-6">
+                    <ChevronLeftIcon className="w-5 h-5 mr-1" />
+                    Volver a la lista de docentes
+                </button>
+                <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+                    <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
+                        <img src={selectedTeacher.photo} alt="Foto de perfil" className="w-24 h-24 rounded-full object-cover" />
+                        <div>
+                            <h1 className="text-2xl font-bold text-dark-text">{selectedTeacher.name} {selectedTeacher.lastName}</h1>
+                            <p className="text-medium-text">{selectedTeacher.rut}</p>
+                            <p className="text-sm text-medium-text mt-2">{age} años | Ingreso: {selectedTeacher.admissionYear} | {selectedTeacher.email}</p>
+                            <p className="text-sm text-medium-text mt-1">Tipo: <span className="font-semibold">{selectedTeacher.teacherType}</span> | Postgrado: <span className="font-semibold">{selectedTeacher.postgradUniversity}</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="border-b border-slate-200">
+                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button onClick={() => setActiveTab('Asignaturas Asignadas')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Asignaturas Asignadas' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Asignaturas</button>
+                        <button onClick={() => setActiveTab('Actividad Profesional')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Actividad Profesional' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Actividad Profesional</button>
+                        <button onClick={() => setActiveTab('Documentos Personales')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Documentos Personales' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Documentos Personales</button>
+                    </nav>
+                </div>
+                
+                 <div className="mt-6">
+                    {activeTab === 'Asignaturas Asignadas' && (
+                        <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+                            <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-slate-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase">Asignatura</th><th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase">Código</th><th className="px-6 py-3 text-center text-xs font-medium text-medium-text uppercase">Semestre</th></tr></thead>
+                                <tbody className="bg-white divide-y divide-slate-200">
+                                    {teacherSubjects.map(subject => (<tr key={subject.id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{subject.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{subject.code}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-medium-text">{subject.semester}</td>
+                                    </tr>))}
+                                    {teacherSubjects.length === 0 && (<tr><td colSpan={3} className="text-center py-4 text-medium-text">No hay asignaturas asignadas.</td></tr>)}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    {activeTab === 'Actividad Profesional' && (
+                        <div>
+                             <div className="flex justify-end mb-4"><button onClick={() => setIsActivityModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm"><PlusIcon className="w-4 h-4 mr-2" />Agregar Actividad</button></div>
+                             <div className="space-y-4">
+                                {teacherProfessionalActivities.map(activity => (<div key={activity.id} className="bg-white p-4 rounded-lg shadow-md border"><h3 className="font-bold text-dark-text">{activity.title}</h3><p className="text-sm text-medium-text">{activity.date.toLocaleDateString('es-CL')} - <span className="font-semibold">{activity.type}</span></p></div>))}
+                                {teacherProfessionalActivities.length === 0 && <p className="text-center py-8 text-medium-text">No hay actividades profesionales registradas.</p>}
+                             </div>
+                        </div>
+                    )}
+                    {activeTab === 'Documentos Personales' && (
+                        <div>
+                             <div className="flex justify-end mb-4"><button onClick={() => setIsDocumentModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm"><PlusIcon className="w-4 h-4 mr-2" />Subir Documento</button></div>
+                             <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                                <table className="min-w-full divide-y divide-slate-200">
+                                    <thead className="bg-slate-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase">Título</th><th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase">Fecha de Subida</th><th className="px-6 py-3 text-right text-xs font-medium text-medium-text uppercase">Acciones</th></tr></thead>
+                                    <tbody>
+                                        {teacherPersonalDocuments.map(doc => (<tr key={doc.id}><td className="px-6 py-4"><p className="text-sm font-medium text-dark-text">{doc.title}</p><p className="text-sm text-medium-text">{doc.description}</p></td><td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{new Date(doc.uploadDate).toLocaleDateString('es-CL')}</td><td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4"><button onClick={() => onPreviewFile(doc.file)} className="text-primary hover:text-primary-hover">Previsualizar</button><a href={doc.file.url} download={doc.file.name} className="text-primary hover:text-primary-hover">Descargar</a></td></tr>))}
+                                        {teacherPersonalDocuments.length === 0 && (<tr><td colSpan={3} className="text-center py-4 text-medium-text">No hay documentos personales.</td></tr>)}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <Modal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title="Registrar Actividad Profesional Docente">
+                    <TeacherProfessionalActivityForm teacherId={selectedTeacherId} onSave={handleSaveActivity} onCancel={() => setIsActivityModalOpen(false)} />
+                </Modal>
+                <Modal isOpen={isDocumentModalOpen} onClose={() => setIsDocumentModalOpen(false)} title="Subir Documento Personal">
+                    <PersonalDocumentForm onSave={handleSaveDocument} onCancel={() => setIsDocumentModalOpen(false)} onPreviewFile={onPreviewFile} />
+                </Modal>
+            </>
+        )
+    }
+
+    return (
+        <div>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                <h1 className="text-2xl font-bold text-dark-text">Expediente de Docentes</h1>
+                <div className="relative"><input type="text" placeholder="Buscar docente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 rounded-full border border-slate-300 w-full sm:w-64" /><SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-light-text" /></div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredTeachers.map(teacher => (
+                    <div key={teacher.id} className="bg-white rounded-lg shadow-md p-4 text-center flex flex-col items-center">
+                        <img src={teacher.photo} alt="Foto de perfil" className="w-20 h-20 rounded-full object-cover mb-3" />
+                        <p className="font-semibold text-dark-text">{teacher.name} {teacher.lastName}</p>
+                        <p className="text-sm text-medium-text">{teacher.rut}</p>
+                        <p className="mt-2 text-xs font-semibold text-indigo-800 bg-indigo-100 px-2 py-1 rounded-full">{teacher.teacherType}</p>
+                        <button onClick={() => setSelectedTeacherId(teacher.id)} className="mt-4 w-full bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg text-sm">Ver Expediente</button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
+const ProfessionalActivityPage: FC<{
+    studentActivities: ProfessionalActivity[];
+    teacherActivities: TeacherProfessionalActivity[];
+    students: Student[];
+    teachers: Teacher[];
+}> = ({ studentActivities, teacherActivities, students, teachers }) => {
+    const [filter, setFilter] = useState<'Todos' | 'Alumnos' | 'Docentes'>('Todos');
+
+    const studentMap = useMemo(() => new Map(students.map(s => [s.id, `${s.name} ${s.lastName}`])), [students]);
+    const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
+
+    const combinedActivities = useMemo(() => {
+        const mappedStudentActivities = studentActivities.map(a => ({ ...a, ownerName: studentMap.get(a.studentId) || 'N/A', ownerType: 'Alumno' as const }));
+        const mappedTeacherActivities = teacherActivities.map(a => ({ ...a, ownerName: teacherMap.get(a.teacherId) || 'N/A', ownerType: 'Docente' as const }));
+        
+        const all = [...mappedStudentActivities, ...mappedTeacherActivities];
+        
+        return all.sort((a, b) => b.date.getTime() - a.date.getTime());
+    }, [studentActivities, teacherActivities, studentMap, teacherMap]);
+    
+    const filteredActivities = useMemo(() => {
+        if (filter === 'Alumnos') return combinedActivities.filter(a => a.ownerType === 'Alumno');
+        if (filter === 'Docentes') return combinedActivities.filter(a => a.ownerType === 'Docente');
+        return combinedActivities;
+    }, [combinedActivities, filter]);
+    
+    return (
+        <div>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                <h1 className="text-2xl font-bold text-dark-text">Actividad Profesional</h1>
+                <div className="flex space-x-2 bg-slate-200 p-1 rounded-lg">
+                    <button onClick={() => setFilter('Todos')} className={`px-4 py-1.5 text-sm font-semibold rounded-md ${filter === 'Todos' ? 'bg-white shadow' : 'text-slate-600'}`}>Todos</button>
+                    <button onClick={() => setFilter('Alumnos')} className={`px-4 py-1.5 text-sm font-semibold rounded-md ${filter === 'Alumnos' ? 'bg-white shadow' : 'text-slate-600'}`}>Alumnos</button>
+                    <button onClick={() => setFilter('Docentes')} className={`px-4 py-1.5 text-sm font-semibold rounded-md ${filter === 'Docentes' ? 'bg-white shadow' : 'text-slate-600'}`}>Docentes</button>
+                </div>
+            </div>
+             <div className="space-y-4">
+                {filteredActivities.map(activity => (
+                     <div key={`${activity.ownerType}-${activity.id}`} className="bg-white p-4 rounded-lg shadow-md border">
+                        <h3 className="font-bold text-dark-text">{activity.title}</h3>
+                        <p className="text-sm text-medium-text">{activity.date.toLocaleDateString('es-CL')} - <span className="font-semibold">{activity.type}</span></p>
+                        <div className="mt-2 text-sm text-dark-text flex items-center">
+                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full mr-2 ${activity.ownerType === 'Alumno' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{activity.ownerType}</span>
+                            <span>{activity.ownerName}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 
 // --- Dashboard & Placeholder Components ---
 
@@ -1755,7 +2712,7 @@ const StatCard: FC<{ icon: React.ReactNode, title: string, value: string | numbe
     </div>
 );
 
-type Page = 'Dashboard' | 'Alumnos' | 'Docentes' | 'Asignaturas' | 'Calificaciones' | 'Expediente Alumnos' | 'Calendario' | 'Noticias' | 'Configuracion';
+type Page = 'Dashboard' | 'Alumnos' | 'Docentes' | 'Asignaturas' | 'Calificaciones' | 'Expediente Alumnos' | 'Calendario' | 'Noticias' | 'Documentos Oficiales' | 'Registro Reuniones' | 'Configuracion' | 'Expediente Docentes' | 'Actividad Profesional';
 
 const Dashboard: FC<{ 
     studentCount: number; 
@@ -1894,10 +2851,16 @@ const App: FC = () => {
     const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
     const [newsArticles, setNewsArticles] = useState<NewsArticle[]>(initialNewsArticles);
     const [gradeReports, setGradeReports] = useState<GradeReport[]>(initialGradeReports);
+    const [officialDocuments, setOfficialDocuments] = useState<OfficialDocument[]>(initialOfficialDocuments);
+    const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>(initialMeetingRecords);
+    const [professionalActivities, setProfessionalActivities] = useState<ProfessionalActivity[]>(initialProfessionalActivities);
+    const [teacherProfessionalActivities, setTeacherProfessionalActivities] = useState<TeacherProfessionalActivity[]>(initialTeacherProfessionalActivities);
+    const [personalDocuments, setPersonalDocuments] = useState<PersonalDocument[]>(initialPersonalDocuments);
     const [activityLog, setActivityLog] = useState<ActivityLog[]>(initialActivityLog);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     
     const [reportModalData, setReportModalData] = useState<{ grade: Grade; report?: GradeReport } | null>(null);
+    const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
 
     const studentMap = useMemo(() => new Map<number, Student>(students.map(s => [s.id, s])), [students]);
     const teacherMap = useMemo(() => new Map<number, string>(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
@@ -2001,14 +2964,41 @@ const App: FC = () => {
                     anotaciones={anotaciones} 
                     setAnotaciones={setAnotaciones} 
                     gradeReports={gradeReports}
+                    professionalActivities={professionalActivities}
+                    setProfessionalActivities={setProfessionalActivities}
+                    personalDocuments={personalDocuments}
+                    setPersonalDocuments={setPersonalDocuments}
                     onOpenReportModal={setReportModalData}
                     onAcceptReport={handleAcceptReport}
                     addActivityLog={addActivityLog} 
+                    onPreviewFile={setPreviewFile}
+                />;
+            case 'Expediente Docentes':
+                return <TeacherRecordPage
+                    teachers={teachers}
+                    subjects={subjects}
+                    teacherActivities={teacherProfessionalActivities}
+                    setTeacherActivities={setTeacherProfessionalActivities}
+                    personalDocuments={personalDocuments}
+                    setPersonalDocuments={setPersonalDocuments}
+                    addActivityLog={addActivityLog}
+                    onPreviewFile={setPreviewFile}
+                />;
+            case 'Actividad Profesional':
+                return <ProfessionalActivityPage
+                    studentActivities={professionalActivities}
+                    teacherActivities={teacherProfessionalActivities}
+                    students={students}
+                    teachers={teachers}
                 />;
             case 'Calendario':
                 return <CalendarPage events={calendarEvents} setEvents={setCalendarEvents} addActivityLog={addActivityLog} />;
             case 'Noticias':
-                return <NewsPage articles={newsArticles} setArticles={setNewsArticles} addActivityLog={addActivityLog} />;
+                return <NewsPage articles={newsArticles} setArticles={setNewsArticles} addActivityLog={addActivityLog} onPreviewFile={setPreviewFile} />;
+            case 'Documentos Oficiales':
+                return <OfficialDocumentsPage documents={officialDocuments} setDocuments={setOfficialDocuments} addActivityLog={addActivityLog} onPreviewFile={setPreviewFile} />;
+            case 'Registro Reuniones':
+                return <MeetingRecordsPage meetings={meetingRecords} setMeetings={setMeetingRecords} students={students} teachers={teachers} addActivityLog={addActivityLog} />;
             case 'Configuracion':
                 return <PlaceholderPage title="Configuración" />;
             default:
@@ -2044,8 +3034,12 @@ const App: FC = () => {
             <NavLink icon={<BookOpenIcon />} label="Asignaturas" />
             <NavLink icon={<ClipboardIcon />} label="Calificaciones" />
             <NavLink icon={<FolderIcon />} label="Expediente Alumnos" />
+            <NavLink icon={<BriefcaseIcon />} label="Expediente Docentes" />
+            <NavLink icon={<AwardIcon />} label="Actividad Profesional" />
             <NavLink icon={<CalendarIcon />} label="Calendario" />
             <NavLink icon={<NewspaperIcon />} label="Noticias" />
+            <NavLink icon={<FileTextIcon />} label="Documentos Oficiales" />
+            <NavLink icon={<BriefcaseIcon />} label="Registro Reuniones" />
         </nav>
         <div className="p-4 border-t border-slate-700">
           <NavLink icon={<SettingsIcon />} label="Configuracion" />
@@ -2095,6 +3089,7 @@ const App: FC = () => {
                     teacherMap={teacherMap}
                 />
             )}
+            <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
         </div>
     );
 };
