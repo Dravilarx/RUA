@@ -1,4 +1,7 @@
+
+
 import React, { useState, FC, ChangeEvent, useMemo, useEffect, useRef } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, ActivityType, TeacherProfessionalActivity, TeacherActivityType, PersonalDocument } from './types';
 import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports, initialOfficialDocuments, initialMeetingRecords, initialProfessionalActivities, initialTeacherProfessionalActivities, initialPersonalDocuments } from './data';
 
@@ -59,7 +62,66 @@ const calculateFinalGrade = (grade: Pick<Grade, 'grade1' | 'grade2' | 'grade3'>)
     if (grade1 == null || grade2 == null || grade3 == null) {
       return null;
     }
-    return (grade1 * 0.6) + (grade2 * 0.3) + (grade3 * 0.1);
+    // Formula corrected to sum up to 100%
+    const final = (grade1 * 0.6) + (grade2 * 0.3) + (grade3 * 0.1);
+    // Ensure grade is within 1.0-7.0 range
+    return Math.max(1.0, Math.min(7.0, final));
+};
+
+
+// --- Export Utilities ---
+const exportToCSV = (headers: {key: string, label: string}[], data: any[], filename: string) => {
+    const csvRows = [];
+    // Add headers
+    csvRows.push(headers.map(h => h.label).join(','));
+
+    // Add data rows
+    for (const row of data) {
+        const values = headers.map(header => {
+            const val = header.key.split('.').reduce((o, i) => o ? o[i] : '', row); // handle nested keys
+            const escaped = ('' + (val ?? '')).replace(/"/g, '""');
+            return `"${escaped}"`;
+        });
+        csvRows.push(values.join(','));
+    }
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `${filename}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+};
+
+const exportToPDF = (headers: {key: string, label: string}[], data: any[], title: string) => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write('<html><head><title>' + title + '</title>');
+        printWindow.document.write('<style>body{font-family:sans-serif;margin:2em}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background-color:#f2f2f2}</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write('<h1>' + title + '</h1>');
+        printWindow.document.write('<table><thead><tr>');
+        headers.forEach(h => {
+            printWindow.document.write('<th>' + h.label + '</th>');
+        });
+        printWindow.document.write('</tr></thead><tbody>');
+        data.forEach(row => {
+            printWindow.document.write('<tr>');
+            headers.forEach(header => {
+                const val = header.key.split('.').reduce((o, i) => o ? o[i] : '', row);
+                printWindow.document.write('<td>' + (val ?? '') + '</td>');
+            });
+            printWindow.document.write('</tr>');
+        });
+        printWindow.document.write('</tbody></table>');
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    }
 };
 
 
@@ -133,6 +195,12 @@ const LinkIcon: FC<{ className?: string }> = ({ className }) => (
 );
 const AwardIcon: FC<{ className?: string }> = ({ className }) => (
     <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 17 17 23 15.79 13.88"></polyline></svg>
+);
+const DownloadIcon: FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+);
+const SparklesIcon: FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" height="1em" width="1em"><path d="M10 3.5a1.5 1.5 0 0 1 3 0V5h1.5a1.5 1.5 0 0 1 0 3H13v1.5a1.5 1.5 0 0 1-3 0V8h-1.5a1.5 1.5 0 0 1 0-3H10V3.5ZM6 11a1 1 0 0 1 2 0v1h1a1 1 0 0 1 0 2H8v1a1 1 0 0 1-2 0v-1H5a1 1 0 0 1 0-2h1v-1Z M12.5 13.5a1 1 0 0 1 2 0v1h1a1 1 0 0 1 0 2h-1v1a1 1 0 0 1-2 0v-1h-1a1 1 0 0 1 0-2h1v-1Z"></path></svg>
 );
 
 // --- Generic Components ---
@@ -212,6 +280,62 @@ const ImageUploader: FC<{ photo?: string; onPhotoChange: (base64: string) => voi
   );
 };
 
+const ExportDropdown: FC<{ 
+    data: any[]; 
+    headers: {key: string, label: string}[]; 
+    filename: string; 
+    title: string; 
+}> = ({ data, headers, filename, title }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handleExportCSV = () => {
+        exportToCSV(headers, data, filename);
+        setIsOpen(false);
+    };
+
+    const handleExportPDF = () => {
+        exportToPDF(headers, data, title);
+        setIsOpen(false);
+    };
+
+    if (data.length === 0) return null;
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <button 
+                onClick={() => setIsOpen(!isOpen)} 
+                className="bg-white border border-slate-300 text-dark-text font-semibold py-2 px-4 rounded-lg flex items-center hover:bg-slate-50 text-sm"
+            >
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Exportar
+            </button>
+            {isOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5">
+                    <div className="py-1">
+                        <a href="#" onClick={(e) => { e.preventDefault(); handleExportCSV(); }} className="block px-4 py-2 text-sm text-dark-text hover:bg-slate-100">
+                            Exportar a CSV
+                        </a>
+                        <a href="#" onClick={(e) => { e.preventDefault(); handleExportPDF(); }} className="block px-4 py-2 text-sm text-dark-text hover:bg-slate-100">
+                            Exportar a PDF
+                        </a>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // --- Student Management Components ---
 type StudentFormState = Omit<Student, 'id'>;
 
@@ -223,7 +347,7 @@ const StudentForm: FC<{ student?: Student; onSave: (student: StudentFormState, i
   const [formState, setFormState] = useState(initialFormState);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value } = e.currentTarget;
     setFormState(prev => ({ ...prev, [name]: value }));
   };
   
@@ -314,15 +438,42 @@ const StudentsPage: FC<{ students: Student[], setStudents: React.Dispatch<React.
         addActivityLog(`Alumno ${student.name} ${student.lastName} ha sido eliminado.`);
     }
   }
+  
+  const exportHeaders = [
+    { key: 'name', label: 'Nombres' },
+    { key: 'lastName', label: 'Apellidos' },
+    { key: 'rut', label: 'RUT' },
+    { key: 'email', label: 'Email' },
+    { key: 'birthDate', label: 'Fecha de Nacimiento' },
+    { key: 'admissionYear', label: 'Año de Ingreso' },
+    { key: 'status', label: 'Estado Residencia' },
+    { key: 'phone', label: 'Teléfono' },
+    { key: 'undergradUniversity', label: 'Universidad Pregrado' },
+    { key: 'nationality', label: 'Nacionalidad' },
+  ];
+
+  const exportData = students.map(student => ({
+      ...student,
+      status: getResidencyStatus(student.admissionYear).status,
+  }));
+
 
   return (
     <>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-dark-text">Gestión de Alumnos</h1>
-        <button onClick={() => { setEditingStudent(undefined); setIsModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
-          <PlusIcon className="w-5 h-5 mr-2" />
-          Nuevo Alumno
-        </button>
+        <div className="flex items-center space-x-2">
+            <ExportDropdown 
+                data={exportData}
+                headers={exportHeaders}
+                filename="alumnos"
+                title="Lista de Alumnos"
+            />
+            <button onClick={() => { setEditingStudent(undefined); setIsModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+              <PlusIcon className="w-5 h-5 mr-2" />
+              Nuevo Alumno
+            </button>
+        </div>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
@@ -391,7 +542,7 @@ const TeacherForm: FC<{ teacher?: Teacher; onSave: (teacher: TeacherFormState, i
   const [formState, setFormState] = useState(initialFormState);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value } = e.currentTarget;
     setFormState(prev => ({ ...prev, [name]: value }));
   };
 
@@ -485,15 +636,35 @@ const TeachersPage: FC<{ teachers: Teacher[], setTeachers: React.Dispatch<React.
           addActivityLog(`Docente ${teacher.name} ${teacher.lastName} ha sido eliminado.`);
       }
     }
+    
+    const exportHeaders = [
+        { key: 'name', label: 'Nombres' },
+        { key: 'lastName', label: 'Apellidos' },
+        { key: 'rut', label: 'RUT' },
+        { key: 'email', label: 'Email' },
+        { key: 'birthDate', label: 'Fecha de Nacimiento' },
+        { key: 'teacherType', label: 'Tipo Docente' },
+        { key: 'admissionYear', label: 'Año de Ingreso' },
+        { key: 'phone', label: 'Teléfono' },
+        { key: 'postgradUniversity', label: 'Universidad Postgrado' },
+    ];
 
     return (
         <>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-dark-text">Gestión de Docentes</h1>
-                <button onClick={() => { setEditingTeacher(undefined); setIsModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    Nuevo Docente
-                </button>
+                <div className="flex items-center space-x-2">
+                    <ExportDropdown 
+                        data={teachers}
+                        headers={exportHeaders}
+                        filename="docentes"
+                        title="Lista de Docentes"
+                    />
+                    <button onClick={() => { setEditingTeacher(undefined); setIsModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                        <PlusIcon className="w-5 h-5 mr-2" />
+                        Nuevo Docente
+                    </button>
+                </div>
             </div>
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
                 <table className="min-w-full divide-y divide-slate-200">
@@ -553,7 +724,7 @@ const SubjectForm: FC<{ subject?: Subject; onSave: (subject: SubjectFormState, i
   const [formState, setFormState] = useState(initialFormState);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value } = e.currentTarget;
     let processedValue: string | number | undefined = value;
     if (name === 'credits' || name === 'semester') {
         processedValue = parseInt(value, 10) || 0;
@@ -635,15 +806,39 @@ const SubjectsPage: FC<{ subjects: Subject[], setSubjects: React.Dispatch<React.
           addActivityLog(`Asignatura "${subject.name}" ha sido eliminada.`);
       }
     }
+    
+    const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
+    
+    const exportHeaders = [
+        { key: 'name', label: 'Nombre Asignatura' },
+        { key: 'code', label: 'Código' },
+        { key: 'teacherName', label: 'Docente Asignado' },
+        { key: 'credits', label: 'Créditos' },
+        { key: 'semester', label: 'Semestre' },
+        { key: 'description', label: 'Descripción' },
+    ];
+
+    const exportData = subjects.map(subject => ({
+        ...subject,
+        teacherName: subject.teacherId ? teacherMap.get(subject.teacherId) : 'Sin asignar',
+    }));
 
     return (
         <>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-dark-text">Gestión de Asignaturas</h1>
-                <button onClick={() => { setEditingSubject(undefined); setIsModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    Nueva Asignatura
-                </button>
+                <div className="flex items-center space-x-2">
+                    <ExportDropdown 
+                        data={exportData}
+                        headers={exportHeaders}
+                        filename="asignaturas"
+                        title="Lista de Asignaturas"
+                    />
+                    <button onClick={() => { setEditingSubject(undefined); setIsModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                        <PlusIcon className="w-5 h-5 mr-2" />
+                        Nueva Asignatura
+                    </button>
+                </div>
             </div>
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
                 <table className="min-w-full divide-y divide-slate-200">
@@ -814,7 +1009,7 @@ const GradeForm: FC<{
 
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value } = e.currentTarget;
     let processedValue: string | number | undefined = value;
     if (name === 'studentId' || name === 'subjectId') {
         processedValue = parseInt(value, 10);
@@ -961,14 +1156,56 @@ const GradesPage: FC<{
     return 'text-dark-text';
   }
 
+  const exportHeaders = [
+    { key: 'studentName', label: 'Alumno' },
+    { key: 'subjectName', label: 'Asignatura' },
+    { key: 'grade1', label: 'Prueba Teórica (60%)' },
+    { key: 'grade2', label: 'Competencias (30%)' },
+    { key: 'grade3', label: 'Presentación (10%)' },
+    { key: 'finalGrade', label: 'Nota Final' },
+    { key: 'status', label: 'Estado' },
+  ];
+
+  const exportData = grades.map(grade => {
+    const student = studentMap.get(grade.studentId);
+    const subject = subjectMap.get(grade.subjectId);
+    const finalGrade = calculateFinalGrade(grade);
+    const report = gradeReports.find(r => r.gradeId === grade.id);
+    const areAllGradesIn = grade.grade1 != null && grade.grade2 != null && grade.grade3 != null;
+
+    let statusText: string;
+    if (report?.status === 'Completado') statusText = 'Completado';
+    else if (report?.status === 'Pendiente Aceptación') statusText = 'Pendiente Aceptación';
+    else if (areAllGradesIn) statusText = 'Notas OK';
+    else statusText = 'En curso';
+
+    return {
+        studentName: student ? `${student.name} ${student.lastName}` : 'N/A',
+        subjectName: subject ? subject.name : 'N/A',
+        grade1: grade.grade1?.toFixed(1) ?? 'N/A',
+        grade2: grade.grade2?.toFixed(1) ?? 'N/A',
+        grade3: grade.grade3?.toFixed(1) ?? 'N/A',
+        finalGrade: finalGrade !== null ? finalGrade.toFixed(1) : 'N/A',
+        status: statusText,
+    };
+  });
+
   return (
     <>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-dark-text">Gestión de Calificaciones</h1>
-        <button onClick={() => { setEditingGrade(undefined); setIsFormModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
-          <PlusIcon className="w-5 h-5 mr-2" />
-          Nueva Calificación
-        </button>
+        <div className="flex items-center space-x-2">
+            <ExportDropdown 
+                data={exportData}
+                headers={exportHeaders}
+                filename="calificaciones"
+                title="Reporte de Calificaciones"
+            />
+            <button onClick={() => { setEditingGrade(undefined); setIsFormModalOpen(true); }} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+              <PlusIcon className="w-5 h-5 mr-2" />
+              Nueva Calificación
+            </button>
+        </div>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-x-auto">
@@ -1084,9 +1321,11 @@ const ReportModal: FC<{
     onAcceptReport: (reportId: number) => void,
     student: Student | undefined,
     subjectMap: Map<number, Subject>,
-    teacherMap: Map<number, string>
-}> = ({ isOpen, onClose, data, onSendReport, onAcceptReport, student, subjectMap, teacherMap }) => {
+    teacherMap: Map<number, string>,
+    ai: GoogleGenAI;
+}> = ({ isOpen, onClose, data, onSendReport, onAcceptReport, student, subjectMap, teacherMap, ai }) => {
     const [feedback, setFeedback] = useState("");
+    const [isGenerating, setIsGenerating] = useState(false);
 
     useEffect(() => {
         if(data) {
@@ -1116,6 +1355,48 @@ const ReportModal: FC<{
         if (report) {
             onAcceptReport(report.id);
             onClose();
+        }
+    };
+    
+    const handleGenerateFeedback = async () => {
+        setIsGenerating(true);
+        setFeedback("Generando feedback con IA...");
+
+        const finalGrade = calculateFinalGrade(grade);
+        if (finalGrade === null) {
+            setFeedback("Error: No se pueden generar comentarios para calificaciones incompletas.");
+            setIsGenerating(false);
+            return;
+        }
+        
+        const competencyDetails = COMPETENCY_CRITERIA.map((criterion, index) => 
+            `- ${criterion.split(':')[0]}: ${grade.competencyScores?.[index] ?? 'N/A'}/7`
+        ).join('\n');
+
+        const prompt = `
+            Eres un asistente para docentes universitarios. Tu tarea es redactar un feedback constructivo y profesional para un alumno de postgrado en Radiología. Basa tu feedback en los siguientes datos:
+            - Asignatura: ${subject?.name || 'N/A'}
+            - Nota Prueba Teórica (escala 1-7, 60%): ${grade.grade1?.toFixed(1) ?? 'N/A'}
+            - Nota Evaluación de Competencias (escala 1-7, 30%): ${grade.grade2?.toFixed(1) ?? 'N/A'}
+            - Nota Presentación (escala 1-7, 10%): ${grade.grade3?.toFixed(1) ?? 'N/A'}
+            - Nota Final: ${finalGrade.toFixed(1)}
+            - Evaluación detallada de competencias (escala 1-7, donde 7 es 'Siempre'):
+              ${competencyDetails}
+
+            El feedback debe ser alentador pero honesto, destacando puntos fuertes y áreas de mejora. No debe exceder las 100 palabras. Sé formal y respetuoso.
+        `;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            setFeedback(response.text);
+        } catch (error) {
+            console.error("Error generating feedback:", error);
+            setFeedback("Hubo un error al generar el feedback. Por favor, inténtelo de nuevo.");
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -1157,13 +1438,21 @@ const ReportModal: FC<{
                             </ul>
                         </div>
                         <div className="bg-white p-4 rounded-lg shadow-md border">
-                             <h3 className="text-lg font-bold text-dark-text mb-3">Feedback del Docente</h3>
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-lg font-bold text-dark-text">Feedback del Docente</h3>
+                                {isSending && (
+                                     <button onClick={handleGenerateFeedback} disabled={isGenerating} className="text-sm font-semibold text-primary hover:text-primary-hover disabled:text-slate-400 flex items-center">
+                                        <SparklesIcon className="w-4 h-4 mr-1" />
+                                        {isGenerating ? 'Generando...' : 'Generar con IA'}
+                                    </button>
+                                )}
+                            </div>
                              <textarea 
                                 value={feedback}
-                                onChange={(e) => setFeedback(e.target.value)}
-                                disabled={!isSending}
+                                onChange={(e) => setFeedback(e.currentTarget.value)}
+                                disabled={!isSending || isGenerating}
                                 rows={8}
-                                placeholder={isSending ? "Escriba aquí su feedback..." : "Sin feedback adicional."}
+                                placeholder={isSending ? "Escriba aquí su feedback o genérelo con IA." : "Sin feedback adicional."}
                                 className="w-full p-2 border-slate-300 rounded-md shadow-sm disabled:bg-slate-100"
                             />
                         </div>
@@ -1205,6 +1494,7 @@ const ReportModal: FC<{
                             <button 
                                 type="button" 
                                 onClick={handleSend}
+                                disabled={isGenerating || !feedback.trim()}
                                 className="bg-primary hover:bg-primary-hover text-white rounded-md py-2 px-4 text-sm font-medium disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center"
                             >
                                 <SendIcon className="w-5 h-5 mr-2" />
@@ -1241,8 +1531,8 @@ const ProfessionalActivityForm: FC<{
     });
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value, type } = e.target;
-        const isNumber = (e.target as HTMLInputElement).type === 'number';
+        const { name, value } = e.currentTarget;
+        const isNumber = (e.currentTarget as HTMLInputElement).type === 'number';
         setFormData((prev: any) => ({
             ...prev,
             [name]: isNumber ? parseInt(value) : value
@@ -1365,7 +1655,7 @@ const ProfessionalActivityForm: FC<{
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Tipo de Actividad</label>
-                <select value={activityType} onChange={e => setActivityType(e.target.value as ActivityType)} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+                <select value={activityType} onChange={e => setActivityType(e.currentTarget.value as ActivityType)} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
                     <option>Congreso</option>
                     <option>Publicación</option>
                     <option>Presentación</option>
@@ -1416,11 +1706,11 @@ const PersonalDocumentForm: FC<{
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Título del Documento</label>
-                <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                <input type="text" value={title} onChange={e => setTitle(e.currentTarget.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
             </div>
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
+                <textarea value={description} onChange={e => setDescription(e.currentTarget.value)} rows={4} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
             </div>
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Archivo</label>
@@ -1456,11 +1746,16 @@ const StudentRecordPage: FC<{
     onAcceptReport: (reportId: number) => void;
     addActivityLog: (desc: string) => void;
     onPreviewFile: (file: { name: string; url: string; type: string }) => void;
-}> = ({ students, teachers, subjects, grades, anotaciones, setAnotaciones, gradeReports, professionalActivities, setProfessionalActivities, personalDocuments, setPersonalDocuments, onOpenReportModal, onAcceptReport, addActivityLog, onPreviewFile }) => {
+    ai: GoogleGenAI;
+}> = ({ students, teachers, subjects, grades, anotaciones, setAnotaciones, gradeReports, professionalActivities, setProfessionalActivities, personalDocuments, setPersonalDocuments, onOpenReportModal, onAcceptReport, addActivityLog, onPreviewFile, ai }) => {
     const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
     const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+    const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
+    const [analysisContent, setAnalysisContent] = useState('');
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isImprovingText, setIsImprovingText] = useState(false);
 
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
     const subjectMap = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
@@ -1498,6 +1793,80 @@ const StudentRecordPage: FC<{
         addActivityLog(`Nueva anotación para ${selectedStudent?.name} ${selectedStudent?.lastName}.`);
         setNewAnotacion({ type: 'Observación', text: '', autorId: teachers[0]?.id || 0 });
     };
+
+    const handleImproveAnotation = async () => {
+        if (!newAnotacion.text.trim()) return;
+        setIsImprovingText(true);
+        const originalText = newAnotacion.text;
+        setNewAnotacion(prev => ({ ...prev, text: "Mejorando texto..."}));
+        const prompt = `
+            Eres un asistente de redacción. Mejora el siguiente texto para que sea más claro, profesional y constructivo. Mantén la idea original. El texto es una anotación para el expediente de un alumno de postgrado.
+            Texto original: "${originalText}"
+            Texto mejorado:
+        `;
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            setNewAnotacion(prev => ({...prev, text: response.text }));
+        } catch (error) {
+            console.error("Error improving text:", error);
+            setNewAnotacion(prev => ({...prev, text: originalText + " (Error al mejorar)" }));
+        } finally {
+            setIsImprovingText(false);
+        }
+    };
+    
+    const handleAnalyzePerformance = async () => {
+        if (!selectedStudent) return;
+        setIsAnalyzing(true);
+        setIsAnalysisModalOpen(true);
+        setAnalysisContent("Analizando desempeño del alumno con IA...");
+
+        const gradesSummary = studentGrades.map(g => {
+            const subjectName = subjectMap.get(g.subjectId)?.name || 'N/A';
+            const finalGrade = calculateFinalGrade(g);
+            return `${subjectName}: ${finalGrade ? finalGrade.toFixed(1) : 'Incompleta'}`;
+        }).join('\n');
+
+        const annotationsSummary = studentAnotaciones.map(a => 
+            `- ${a.type} (${a.timestamp.toLocaleDateString('es-CL')}): ${a.text}`
+        ).join('\n');
+
+        const prompt = `
+            Eres un director de programa de postgrado en Radiología. Tu tarea es analizar el expediente de un alumno y generar un resumen de su desempeño académico y profesional. El resumen debe ser objetivo y conciso.
+
+            Datos del Alumno:
+            - Nombre: ${selectedStudent.name} ${selectedStudent.lastName}
+            - Año de Ingreso: ${selectedStudent.admissionYear}
+
+            Calificaciones (Asignatura: Nota Final):
+            ${gradesSummary || 'Sin calificaciones registradas.'}
+
+            Anotaciones:
+            ${annotationsSummary || 'Sin anotaciones registradas.'}
+
+            Basándote en estos datos, redacta un resumen de no más de 150 palabras que incluya:
+            1. Un resumen general del rendimiento académico (destacando consistencia, áreas de fortaleza o debilidad).
+            2. Un análisis de las anotaciones, mencionando patrones de comportamiento (iniciativa, responsabilidad, áreas de mejora).
+            3. Una conclusión general sobre la trayectoria del alumno hasta la fecha.
+        `;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-pro',
+                contents: prompt,
+            });
+            setAnalysisContent(response.text);
+        } catch (error) {
+            console.error("Error analyzing performance:", error);
+            setAnalysisContent("Hubo un error al analizar el desempeño. Por favor, inténtelo de nuevo.");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
 
     const handleSaveActivity = (activityData: Omit<ProfessionalActivity, 'id'>) => {
         const newActivity = { ...activityData, id: Date.now() } as ProfessionalActivity;
@@ -1573,18 +1942,24 @@ const StudentRecordPage: FC<{
                     Volver a la lista de alumnos
                 </button>
                 <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                    <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
-                        <img src={selectedStudent.photo} alt="Foto de perfil" className="w-24 h-24 rounded-full object-cover" />
-                        <div>
-                            <div className="flex items-center space-x-3">
-                                <h1 className="text-2xl font-bold text-dark-text">{selectedStudent.name} {selectedStudent.lastName}</h1>
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color}`}>{status}</span>
+                     <div className="flex flex-col sm:flex-row justify-between items-start space-y-4 sm:space-y-0 sm:space-x-6">
+                        <div className="flex items-start space-x-6">
+                            <img src={selectedStudent.photo} alt="Foto de perfil" className="w-24 h-24 rounded-full object-cover" />
+                            <div>
+                                <div className="flex items-center space-x-3">
+                                    <h1 className="text-2xl font-bold text-dark-text">{selectedStudent.name} {selectedStudent.lastName}</h1>
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color}`}>{status}</span>
+                                </div>
+                                <p className="text-medium-text">{selectedStudent.rut}</p>
+                                 <p className="text-sm text-medium-text mt-2">
+                                    {age} años | Ingreso: {selectedStudent.admissionYear} | {selectedStudent.email}
+                                </p>
                             </div>
-                            <p className="text-medium-text">{selectedStudent.rut}</p>
-                             <p className="text-sm text-medium-text mt-2">
-                                {age} años | Ingreso: {selectedStudent.admissionYear} | {selectedStudent.email}
-                            </p>
                         </div>
+                        <button onClick={handleAnalyzePerformance} className="bg-primary-light text-primary font-semibold py-2 px-4 rounded-lg flex items-center hover:bg-indigo-200 text-sm disabled:opacity-50" disabled={isAnalyzing}>
+                            <SparklesIcon className="w-5 h-5 mr-2" />
+                            {isAnalyzing ? 'Analizando...' : 'Analizar Desempeño con IA'}
+                        </button>
                     </div>
                 </div>
 
@@ -1601,6 +1976,35 @@ const StudentRecordPage: FC<{
                 <div className="mt-6">
                     {activeTab === 'Calificaciones' && (
                          <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+                            <div className="flex justify-end p-4">
+                                <ExportDropdown 
+                                    data={studentGrades.map(grade => {
+                                        const subject = subjectMap.get(grade.subjectId);
+                                        const teacher = teacherMap.get(subject?.teacherId || -1);
+                                        const finalGrade = calculateFinalGrade(grade);
+                                        const report = gradeReports.find(r => r.gradeId === grade.id);
+                                        const areAllGradesIn = grade.grade1 != null && grade.grade2 != null && grade.grade3 != null;
+                                        let statusText = 'En curso';
+                                        if (report?.status === 'Completado') statusText = 'Completado';
+                                        else if (report?.status === 'Pendiente Aceptación') statusText = 'Pendiente Aceptación';
+                                        else if (areAllGradesIn) statusText = 'Notas OK';
+                                        return {
+                                            subjectName: subject?.name || 'N/A',
+                                            teacherName: teacher || 'Sin asignar',
+                                            finalGrade: finalGrade?.toFixed(1) || '-',
+                                            status: statusText,
+                                        };
+                                    })}
+                                    headers={[
+                                        {key: 'subjectName', label: 'Asignatura'},
+                                        {key: 'teacherName', label: 'Docente'},
+                                        {key: 'finalGrade', label: 'Nota Final'},
+                                        {key: 'status', label: 'Estado'},
+                                    ]}
+                                    filename={`calificaciones_${selectedStudent.name}_${selectedStudent.lastName}`}
+                                    title={`Calificaciones de ${selectedStudent.name} ${selectedStudent.lastName}`}
+                                />
+                            </div>
                             <table className="min-w-full divide-y divide-slate-200">
                                 <thead className="bg-slate-50">
                                     <tr>
@@ -1642,51 +2046,91 @@ const StudentRecordPage: FC<{
                         </div>
                     )}
                      {activeTab === 'Anotaciones' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2 space-y-4">
-                                {studentAnotaciones.map(anotacion => (
-                                    <div key={anotacion.id} className={`p-4 rounded-lg border ${getAnotacionTypeColor(anotacion.type)}`}>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div className="flex items-center space-x-2">
-                                               <span className="font-bold text-sm">{anotacion.type}</span>
-                                               <span className="text-xs text-medium-text">&bull;</span>
-                                               <span className="text-xs text-medium-text"> {teacherMap.get(anotacion.autorId) || 'Desconocido'}</span>
-                                            </div>
-                                            <p className="text-xs text-medium-text">{anotacion.timestamp.toLocaleDateString()}</p>
-                                        </div>
-                                        <p className="text-sm text-dark-text">{anotacion.text}</p>
-                                    </div>
-                                ))}
-                                {studentAnotaciones.length === 0 && <p className="text-medium-text">No hay anotaciones para este alumno.</p>}
+                        <div>
+                            <div className="flex justify-end mb-4">
+                                <ExportDropdown 
+                                    data={studentAnotaciones.map(a => ({
+                                        type: a.type,
+                                        author: teacherMap.get(a.autorId) || 'Desconocido',
+                                        date: a.timestamp.toLocaleDateString('es-CL'),
+                                        text: a.text
+                                    }))}
+                                    headers={[
+                                        {key: 'type', label: 'Tipo'},
+                                        {key: 'author', label: 'Autor'},
+                                        {key: 'date', label: 'Fecha'},
+                                        {key: 'text', label: 'Descripción'}
+                                    ]}
+                                    filename={`anotaciones_${selectedStudent.name}_${selectedStudent.lastName}`}
+                                    title={`Anotaciones de ${selectedStudent.name} ${selectedStudent.lastName}`}
+                                />
                             </div>
-                            <div className="bg-white p-4 rounded-lg shadow-md h-fit">
-                                <h3 className="text-lg font-semibold text-dark-text mb-4">Agregar Anotación</h3>
-                                <form onSubmit={handleAddAnotacion} className="space-y-4">
-                                     <div>
-                                        <label className="block text-sm font-medium text-medium-text mb-1">Autor</label>
-                                        <select value={newAnotacion.autorId} onChange={e => setNewAnotacion({...newAnotacion, autorId: parseInt(e.target.value)})} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
-                                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-medium-text mb-1">Tipo</label>
-                                        <select value={newAnotacion.type} onChange={e => setNewAnotacion({...newAnotacion, type: e.target.value as Anotacion['type']})} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
-                                            <option>Observación</option>
-                                            <option>Positiva</option>
-                                            <option>Negativa</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
-                                        <textarea value={newAnotacion.text} onChange={e => setNewAnotacion({...newAnotacion, text: e.target.value})} rows={4} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
-                                    </div>
-                                    <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white rounded-md py-2 text-sm font-medium">Guardar Anotación</button>
-                                </form>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="lg:col-span-2 space-y-4">
+                                    {studentAnotaciones.map(anotacion => (
+                                        <div key={anotacion.id} className={`p-4 rounded-lg border ${getAnotacionTypeColor(anotacion.type)}`}>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center space-x-2">
+                                                <span className="font-bold text-sm">{anotacion.type}</span>
+                                                <span className="text-xs text-medium-text">&bull;</span>
+                                                <span className="text-xs text-medium-text"> {teacherMap.get(anotacion.autorId) || 'Desconocido'}</span>
+                                                </div>
+                                                <p className="text-xs text-medium-text">{anotacion.timestamp.toLocaleDateString()}</p>
+                                            </div>
+                                            <p className="text-sm text-dark-text">{anotacion.text}</p>
+                                        </div>
+                                    ))}
+                                    {studentAnotaciones.length === 0 && <p className="text-medium-text">No hay anotaciones para este alumno.</p>}
+                                </div>
+                                <div className="bg-white p-4 rounded-lg shadow-md h-fit">
+                                    <h3 className="text-lg font-semibold text-dark-text mb-4">Agregar Anotación</h3>
+                                    <form onSubmit={handleAddAnotacion} className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-medium-text mb-1">Autor</label>
+                                            <select value={newAnotacion.autorId} onChange={e => setNewAnotacion({...newAnotacion, autorId: parseInt(e.currentTarget.value)})} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+                                                {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-medium-text mb-1">Tipo</label>
+                                            <select value={newAnotacion.type} onChange={e => setNewAnotacion({...newAnotacion, type: e.currentTarget.value as Anotacion['type']})} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+                                                <option>Observación</option>
+                                                <option>Positiva</option>
+                                                <option>Negativa</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
+                                            <textarea value={newAnotacion.text} onChange={e => setNewAnotacion({...newAnotacion, text: e.currentTarget.value})} rows={4} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
+                                            <button type="button" onClick={handleImproveAnotation} disabled={isImprovingText || !newAnotacion.text} className="text-xs mt-1 text-primary hover:underline disabled:text-slate-400 flex items-center">
+                                                <SparklesIcon className="w-3 h-3 mr-1" />
+                                                {isImprovingText ? 'Mejorando...' : 'Mejorar con IA'}
+                                            </button>
+                                        </div>
+                                        <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white rounded-md py-2 text-sm font-medium">Guardar Anotación</button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     )}
                      {activeTab === 'Reportes' && (
                          <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+                            <div className="flex justify-end p-4">
+                                <ExportDropdown 
+                                    data={studentReports.map(report => ({
+                                        subjectName: subjectMap.get(report.subjectId)?.name || 'N/A',
+                                        generationDate: new Date(report.generationDate).toLocaleDateString('es-CL'),
+                                        status: report.status,
+                                    }))}
+                                    headers={[
+                                        {key: 'subjectName', label: 'Asignatura'},
+                                        {key: 'generationDate', label: 'Fecha Generación'},
+                                        {key: 'status', label: 'Estado'},
+                                    ]}
+                                    filename={`reportes_${selectedStudent.name}_${selectedStudent.lastName}`}
+                                    title={`Reportes de ${selectedStudent.name} ${selectedStudent.lastName}`}
+                                />
+                            </div>
                            <table className="min-w-full divide-y divide-slate-200">
                                 <thead className="bg-slate-50">
                                     <tr>
@@ -1731,7 +2175,17 @@ const StudentRecordPage: FC<{
                     )}
                     {activeTab === 'Actividad Profesional' && (
                         <div>
-                            <div className="flex justify-end mb-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <ExportDropdown 
+                                    data={studentProfessionalActivities.map(a => ({...a, date: a.date.toLocaleDateString('es-CL')}))}
+                                    headers={[
+                                        {key: 'title', label: 'Título'},
+                                        {key: 'type', label: 'Tipo'},
+                                        {key: 'date', label: 'Fecha'},
+                                    ]}
+                                    filename={`actividad_profesional_${selectedStudent.name}_${selectedStudent.lastName}`}
+                                    title={`Actividad Profesional de ${selectedStudent.name} ${selectedStudent.lastName}`}
+                                />
                                 <button onClick={() => setIsActivityModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm">
                                     <PlusIcon className="w-4 h-4 mr-2" />
                                     Agregar Actividad
@@ -1756,7 +2210,17 @@ const StudentRecordPage: FC<{
                     )}
                      {activeTab === 'Documentos Personales' && (
                         <div>
-                             <div className="flex justify-end mb-4">
+                             <div className="flex justify-between items-center mb-4">
+                                <ExportDropdown 
+                                    data={studentPersonalDocuments.map(d => ({...d, uploadDate: new Date(d.uploadDate).toLocaleDateString('es-CL')}))}
+                                    headers={[
+                                        {key: 'title', label: 'Título'},
+                                        {key: 'description', label: 'Descripción'},
+                                        {key: 'uploadDate', label: 'Fecha de Subida'},
+                                    ]}
+                                    filename={`documentos_${selectedStudent.name}_${selectedStudent.lastName}`}
+                                    title={`Documentos de ${selectedStudent.name} ${selectedStudent.lastName}`}
+                                />
                                 <button onClick={() => setIsDocumentModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm">
                                     <PlusIcon className="w-4 h-4 mr-2" />
                                     Subir Documento
@@ -1792,6 +2256,11 @@ const StudentRecordPage: FC<{
                         </div>
                     )}
                 </div>
+                <Modal isOpen={isAnalysisModalOpen} onClose={() => setIsAnalysisModalOpen(false)} title={`Análisis de Desempeño: ${selectedStudent.name} ${selectedStudent.lastName}`}>
+                    <div className="whitespace-pre-wrap text-dark-text bg-slate-50 p-4 rounded-md">
+                        {analysisContent}
+                    </div>
+                </Modal>
                 <Modal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title="Registrar Actividad Profesional">
                     <ProfessionalActivityForm 
                         studentId={selectedStudentId}
@@ -1806,13 +2275,32 @@ const StudentRecordPage: FC<{
         )
     }
 
+    const exportHeaders = [
+        { key: 'name', label: 'Nombres' },
+        { key: 'lastName', label: 'Apellidos' },
+        { key: 'rut', label: 'RUT' },
+        { key: 'status', label: 'Estado Residencia' },
+    ];
+    const exportData = filteredStudents.map(student => ({
+        ...student,
+        status: getResidencyStatus(student.admissionYear).status,
+    }));
+
     return (
         <div>
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
                 <h1 className="text-2xl font-bold text-dark-text">Expediente de Alumnos</h1>
-                <div className="relative">
-                    <input type="text" placeholder="Buscar alumno por nombre o RUT..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 rounded-full border border-slate-300 w-full sm:w-64" />
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-light-text" />
+                <div className="flex items-center space-x-2">
+                    <div className="relative">
+                        <input type="text" placeholder="Buscar alumno por nombre o RUT..." value={searchTerm} onChange={e => setSearchTerm(e.currentTarget.value)} className="pl-10 pr-4 py-2 rounded-full border border-slate-300 w-full sm:w-64" />
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-light-text" />
+                    </div>
+                     <ExportDropdown 
+                        data={exportData}
+                        headers={exportHeaders}
+                        filename="lista_expedientes_alumnos"
+                        title="Lista de Expedientes de Alumnos"
+                    />
                 </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -1866,21 +2354,21 @@ const EventForm: FC<{ event?: CalendarEvent, onSave: (event: Omit<CalendarEvent,
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-medium-text mb-1">Título del Evento</label>
-        <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+        <input type="text" value={title} onChange={e => setTitle(e.currentTarget.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label className="block text-sm font-medium text-medium-text mb-1">Inicio</label>
-            <input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            <input type="datetime-local" value={start} onChange={e => setStart(e.currentTarget.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
         </div>
         <div>
             <label className="block text-sm font-medium text-medium-text mb-1">Término</label>
-            <input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            <input type="datetime-local" value={end} onChange={e => setEnd(e.currentTarget.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-medium-text mb-1">Tipo de Evento</label>
-        <select value={type} onChange={e => setType(e.target.value as CalendarEvent['type'])} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+        <select value={type} onChange={e => setType(e.currentTarget.value as CalendarEvent['type'])} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
             <option>Evento</option>
             <option>Examen</option>
             <option>Clase</option>
@@ -1889,7 +2377,7 @@ const EventForm: FC<{ event?: CalendarEvent, onSave: (event: Omit<CalendarEvent,
       </div>
       <div>
         <label className="block text-sm font-medium text-medium-text mb-1">Link de Reunión (Opcional)</label>
-        <input type="url" value={streamingLink} onChange={e => setStreamingLink(e.target.value)} placeholder="https://meet.example.com/..." className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+        <input type="url" value={streamingLink} onChange={e => setStreamingLink(e.currentTarget.value)} placeholder="https://meet.example.com/..." className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
       </div>
       <div className="flex justify-end space-x-3 pt-4">
             <button type="button" onClick={onCancel} className="bg-white border border-slate-300 rounded-md py-2 px-4 text-sm font-medium text-dark-text hover:bg-slate-50">Cancelar</button>
@@ -2001,7 +2489,7 @@ const NewsForm: FC<{
   const handleAttachmentUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const newAttachments = await Promise.all(Array.from(files).map(async file => {
+      const newAttachments = await Promise.all(Array.from(files).map(async (file: File) => {
           const base64 = await blobToBase64(file);
           return { name: file.name, url: base64, type: file.type };
       }));
@@ -2022,15 +2510,15 @@ const NewsForm: FC<{
     <form onSubmit={handleSubmit} className="space-y-4">
         <div>
             <label className="block text-sm font-medium text-medium-text mb-1">Título</label>
-            <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            <input type="text" value={title} onChange={e => setTitle(e.currentTarget.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
         </div>
         <div>
             <label className="block text-sm font-medium text-medium-text mb-1">Autor</label>
-            <input type="text" value={author} onChange={e => setAuthor(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            <input type="text" value={author} onChange={e => setAuthor(e.currentTarget.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
         </div>
         <div>
             <label className="block text-sm font-medium text-medium-text mb-1">Contenido</label>
-            <textarea value={content} onChange={e => setContent(e.target.value)} rows={6} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
+            <textarea value={content} onChange={e => setContent(e.currentTarget.value)} rows={6} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
         </div>
         <div>
             <label className="block text-sm font-medium text-medium-text mb-1">Imagen de Portada</label>
@@ -2169,15 +2657,15 @@ const DocumentForm: FC<{
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Título del Documento</label>
-                <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                <input type="text" value={title} onChange={e => setTitle(e.currentTarget.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
             </div>
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Autor / Origen</label>
-                <input type="text" value={author} onChange={e => setAuthor(e.target.value)} placeholder="Ej: Dirección de Postgrado" className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                <input type="text" value={author} onChange={e => setAuthor(e.currentTarget.value)} placeholder="Ej: Dirección de Postgrado" className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
             </div>
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
+                <textarea value={description} onChange={e => setDescription(e.currentTarget.value)} rows={4} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required></textarea>
             </div>
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Archivo</label>
@@ -2211,15 +2699,35 @@ const OfficialDocumentsPage: FC<{
         addActivityLog(`Nuevo documento oficial '${newDocument.title}' ha sido agregado.`);
         setIsModalOpen(false);
     };
+    
+    const exportHeaders = [
+        { key: 'title', label: 'Título' },
+        { key: 'description', label: 'Descripción' },
+        { key: 'author', label: 'Autor' },
+        { key: 'uploadDate', label: 'Fecha de Subida' },
+    ];
+
+    const exportData = documents.map(doc => ({
+        ...doc,
+        uploadDate: new Date(doc.uploadDate).toLocaleDateString('es-CL'),
+    }));
 
     return (
         <>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-dark-text">Documentos Oficiales</h1>
-                <button onClick={() => setIsModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    Subir Documento
-                </button>
+                <div className="flex items-center space-x-2">
+                    <ExportDropdown 
+                        data={exportData}
+                        headers={exportHeaders}
+                        filename="documentos_oficiales"
+                        title="Documentos Oficiales"
+                    />
+                    <button onClick={() => setIsModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                        <PlusIcon className="w-5 h-5 mr-2" />
+                        Subir Documento
+                    </button>
+                </div>
             </div>
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
                 <table className="min-w-full divide-y divide-slate-200">
@@ -2278,12 +2786,12 @@ const MeetingForm: FC<{
     const [externalsInput, setExternalsInput] = useState('');
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
+        const { name, value } = e.currentTarget;
         setFormState(prev => ({...prev, [name]: value }));
     };
 
     const handleMultiSelectChange = (e: ChangeEvent<HTMLSelectElement>, type: 'teachers' | 'students') => {
-        const selectedIds = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+        const selectedIds = Array.from(e.currentTarget.selectedOptions, option => parseInt(option.value));
         setFormState(prev => ({
             ...prev,
             attendees: { ...prev.attendees, [type]: selectedIds }
@@ -2305,7 +2813,7 @@ const MeetingForm: FC<{
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  <div>
                     <label className="block text-sm font-medium text-medium-text mb-1">Fecha</label>
-                    <input type="date" name="date" value={formState.date.toISOString().split('T')[0]} onChange={e => setFormState(p => ({...p, date: new Date(e.target.value)}))} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                    <input type="date" name="date" value={formState.date.toISOString().split('T')[0]} onChange={e => setFormState(p => ({...p, date: new Date(e.currentTarget.value)}))} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
                  </div>
                  <div>
                     <label className="block text-sm font-medium text-medium-text mb-1">Hora Inicio</label>
@@ -2336,7 +2844,7 @@ const MeetingForm: FC<{
              </div>
              <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Asistentes Externos (separados por coma)</label>
-                <input type="text" value={externalsInput} onChange={e => setExternalsInput(e.target.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                <input type="text" value={externalsInput} onChange={e => setExternalsInput(e.currentTarget.value)} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
             </div>
              <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Link de Reunión (Opcional)</label>
@@ -2356,8 +2864,11 @@ const MeetingRecordsPage: FC<{
     students: Student[];
     teachers: Teacher[];
     addActivityLog: (desc: string) => void;
-}> = ({ meetings, setMeetings, students, teachers, addActivityLog }) => {
+    ai: GoogleGenAI;
+}> = ({ meetings, setMeetings, students, teachers, addActivityLog, ai }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [summaryModalContent, setSummaryModalContent] = useState<{title: string, content: string} | null>(null);
+    const [isSummarizing, setIsSummarizing] = useState<number | null>(null);
     
     const studentMap = useMemo(() => new Map(students.map(s => [s.id, `${s.name} ${s.lastName}`])), [students]);
     const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
@@ -2365,54 +2876,116 @@ const MeetingRecordsPage: FC<{
     const handleSave = (meetingData: Omit<MeetingRecord, 'id'>) => {
         const newMeeting = { ...meetingData, id: Date.now() };
         setMeetings(prev => [newMeeting, ...prev].sort((a,b) => b.date.getTime() - a.date.getTime()));
-        addActivityLog(`Nueva reunión '${newMeeting.title}' ha sido registrada.`);
+        addActivityLog(`Nuevo registro de reunión '${newMeeting.title}' ha sido agregado.`);
         setIsModalOpen(false);
     };
+
+    const handleSummarize = async (meeting: MeetingRecord) => {
+        setIsSummarizing(meeting.id);
+        setSummaryModalContent({ title: `Resumen de: ${meeting.title}`, content: "Generando resumen con IA..." });
+        
+        const teacherAttendees = meeting.attendees.teachers.map(id => teacherMap.get(id)).filter(Boolean).join(', ');
+        const studentAttendees = meeting.attendees.students.map(id => studentMap.get(id)).filter(Boolean).join(', ');
+
+        const prompt = `
+            Eres un asistente administrativo. Tu tarea es resumir el siguiente registro de una reunión académica.
+            - Título: ${meeting.title}
+            - Fecha: ${new Date(meeting.date).toLocaleDateString('es-CL')}
+            - Detalles: ${meeting.details}
+            - Asistentes Docentes: ${teacherAttendees || 'Ninguno'}
+            - Asistentes Alumnos: ${studentAttendees || 'Ninguno'}
+            - Asistentes Externos: ${meeting.attendees.externals.join(', ') || 'Ninguno'}
+
+            Genera un resumen conciso en formato de lista (bullet points) de los puntos clave tratados en la reunión.
+        `;
+
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            setSummaryModalContent({ title: `Resumen de: ${meeting.title}`, content: response.text });
+        } catch(error) {
+            console.error("Error summarizing meeting:", error);
+            setSummaryModalContent({ title: `Resumen de: ${meeting.title}`, content: "Hubo un error al generar el resumen." });
+        } finally {
+            setIsSummarizing(null);
+        }
+    };
+    
+    const exportHeaders = [
+        { key: 'title', label: 'Título' },
+        { key: 'date', label: 'Fecha' },
+        { key: 'startTime', label: 'Hora Inicio' },
+        { key: 'endTime', label: 'Hora Término' },
+        { key: 'details', label: 'Detalles' },
+        { key: 'teacherAttendees', label: 'Docentes Asistentes' },
+        { key: 'studentAttendees', label: 'Alumnos Asistentes' },
+        { key: 'externalAttendees', label: 'Asistentes Externos' },
+    ];
+
+    const exportData = meetings.map((m: MeetingRecord) => ({
+        ...m,
+        date: new Date(m.date).toLocaleDateString('es-CL'),
+        teacherAttendees: m.attendees.teachers.map(id => teacherMap.get(id)).join(', '),
+        studentAttendees: m.attendees.students.map(id => studentMap.get(id)).join(', '),
+        externalAttendees: m.attendees.externals.join(', '),
+    }));
 
     return (
         <>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-dark-text">Registro de Reuniones</h1>
-                <button onClick={() => setIsModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                    <PlusIcon className="w-5 h-5 mr-2" />
-                    Registrar Reunión
-                </button>
+                 <div className="flex items-center space-x-2">
+                    <ExportDropdown 
+                        data={exportData}
+                        headers={exportHeaders}
+                        filename="registro_reuniones"
+                        title="Registro de Reuniones"
+                    />
+                    <button onClick={() => setIsModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                        <PlusIcon className="w-5 h-5 mr-2" />
+                        Registrar Reunión
+                    </button>
+                </div>
             </div>
-            <div className="space-y-6">
+            <div className="space-y-4">
                 {meetings.map(meeting => (
-                    <div key={meeting.id} className="bg-white p-6 rounded-lg shadow-md">
+                    <div key={meeting.id} className="bg-white p-4 rounded-lg shadow-md border">
                         <div className="flex justify-between items-start">
-                           <div>
-                                <h2 className="text-lg font-bold text-dark-text">{meeting.title}</h2>
-                                <p className="text-sm text-medium-text">{new Date(meeting.date).toLocaleDateString('es-CL')} | {meeting.startTime} - {meeting.endTime}</p>
-                           </div>
-                           {meeting.streamingLink && (
-                             <a href={meeting.streamingLink} target="_blank" rel="noopener noreferrer" title="Ir al link de la reunión" className="text-sm bg-primary-light text-primary font-semibold py-1 px-3 rounded-full hover:bg-indigo-200">
-                                Unirse
-                             </a>
-                           )}
+                            <div>
+                                <h3 className="font-bold text-dark-text">{meeting.title}</h3>
+                                <p className="text-sm text-medium-text">{new Date(meeting.date).toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} &bull; {meeting.startTime} - {meeting.endTime}</p>
+                            </div>
+                             <button onClick={() => handleSummarize(meeting)} disabled={isSummarizing === meeting.id} className="text-sm font-semibold text-primary hover:text-primary-hover disabled:text-slate-400 flex items-center">
+                                <SparklesIcon className="w-4 h-4 mr-1" />
+                                {isSummarizing === meeting.id ? 'Resumiendo...' : 'Resumir con IA'}
+                            </button>
                         </div>
-                         <p className="mt-4 text-sm text-dark-text whitespace-pre-wrap">{meeting.details}</p>
-                         <div className="mt-4 pt-4 border-t">
-                            <h4 className="font-semibold text-sm text-dark-text">Asistentes:</h4>
-                            <ul className="text-sm text-medium-text list-disc list-inside mt-2">
-                                {meeting.attendees.teachers.map(id => <li key={`t-${id}`}>{teacherMap.get(id)} (Docente)</li>)}
-                                {meeting.attendees.students.map(id => <li key={`s-${id}`}>{studentMap.get(id)} (Alumno)</li>)}
-                                {meeting.attendees.externals.map((name, i) => <li key={`e-${i}`}>{name} (Externo)</li>)}
-                            </ul>
-                         </div>
+                        <p className="text-sm text-dark-text mt-2 whitespace-pre-wrap">{meeting.details}</p>
+                        <div className="text-xs text-medium-text mt-3 pt-3 border-t">
+                            <p><strong>Asistentes:</strong> {
+                                [...meeting.attendees.teachers.map(id => teacherMap.get(id)), ...meeting.attendees.students.map(id => studentMap.get(id)), ...meeting.attendees.externals].filter(Boolean).join(', ')
+                            }</p>
+                        </div>
                     </div>
                 ))}
             </div>
-             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Nueva Reunión" size="3xl">
+
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Nueva Reunión">
                 <MeetingForm onSave={handleSave} onCancel={() => setIsModalOpen(false)} students={students} teachers={teachers} />
+            </Modal>
+             <Modal isOpen={!!summaryModalContent} onClose={() => setSummaryModalContent(null)} title={summaryModalContent?.title || ''}>
+                <div className="whitespace-pre-wrap text-dark-text bg-slate-50 p-4 rounded-md">
+                    {summaryModalContent?.content}
+                </div>
             </Modal>
         </>
     );
 };
 
-// --- Teacher Professional Activity Components ---
 
+// --- Teacher Record Module ---
 const TeacherProfessionalActivityForm: FC<{
     teacherId: number;
     onSave: (activity: Omit<TeacherProfessionalActivity, 'id'>) => void;
@@ -2425,8 +2998,12 @@ const TeacherProfessionalActivityForm: FC<{
     });
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev: any) => ({ ...prev, [name]: value }));
+        const { name, value } = e.currentTarget;
+        const isNumber = (e.currentTarget as HTMLInputElement).type === 'number';
+        setFormData((prev: any) => ({
+            ...prev,
+            [name]: isNumber ? parseInt(value) : value
+        }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -2441,51 +3018,112 @@ const TeacherProfessionalActivityForm: FC<{
     };
     
     const commonFields = (
-        <>
-           <div>
-               <label className="block text-sm font-medium text-medium-text mb-1">Título / Nombre</label>
-               <input type="text" name="title" onChange={handleChange} value={formData.title || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
-           </div>
-           <div>
-               <label className="block text-sm font-medium text-medium-text mb-1">Fecha</label>
-               <input type="date" name="date" onChange={handleChange} value={formData.date || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
-           </div>
-       </>
-   );
+         <>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Título / Nombre</label>
+                <input type="text" name="title" onChange={handleChange} value={formData.title || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-medium-text mb-1">Fecha</label>
+                <input type="date" name="date" onChange={handleChange} value={formData.date || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+            </div>
+        </>
+    );
 
     const renderSpecificFields = () => {
         switch(activityType) {
-            case 'Congreso': return (<>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Lugar</label><input type="text" name="location" onChange={handleChange} value={formData.location || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Participación</label><select name="participationType" onChange={handleChange} value={formData.participationType || 'Asistente'} className="w-full p-2 border-slate-300 rounded-md shadow-sm"><option>Asistente</option><option>Expositor</option><option>Organizador</option></select></div>
-            </>);
-            case 'Publicación': return (<>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Revista / Conferencia</label><input type="text" name="journal" onChange={handleChange} value={formData.journal || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">DOI / Link</label><input type="text" name="doiLink" onChange={handleChange} value={formData.doiLink || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" /></div>
-            </>);
-            case 'Presentación': return (<>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Nombre Evento</label><input type="text" name="eventName" onChange={handleChange} value={formData.eventName || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Lugar</label><input type="text" name="location" onChange={handleChange} value={formData.location || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" /></div>
-            </>);
-            case 'Investigación': return (<>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Proyecto</label><input type="text" name="project" onChange={handleChange} value={formData.project || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Rol</label><input type="text" name="role" onChange={handleChange} value={formData.role || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" /></div>
-            </>);
-            case 'Docencia': return (<>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Curso / Asignatura</label><input type="text" name="course" onChange={handleChange} value={formData.course || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>
-                <div><label className="block text-sm font-medium text-medium-text mb-1">Institución</label><input type="text" name="institution" onChange={handleChange} value={formData.institution || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" /></div>
-            </>);
-            case 'Otro': return (<div className="col-span-2"><label className="block text-sm font-medium text-medium-text mb-1">Descripción</label><textarea name="description" onChange={handleChange} value={formData.description || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required /></div>);
-            default: return null;
+            case 'Congreso':
+                return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Lugar</label>
+                            <input type="text" name="location" onChange={handleChange} value={formData.location || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Tipo de Participación</label>
+                            <select name="participationType" onChange={handleChange} value={formData.participationType || 'Asistente'} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+                                <option>Asistente</option>
+                                <option>Expositor</option>
+                                <option>Organizador</option>
+                            </select>
+                        </div>
+                    </>
+                );
+            case 'Publicación':
+                return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Revista / Conferencia</label>
+                            <input type="text" name="journal" onChange={handleChange} value={formData.journal || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">DOI / Link</label>
+                            <input type="text" name="doiLink" onChange={handleChange} value={formData.doiLink || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                        </div>
+                    </>
+                );
+            case 'Presentación':
+                 return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Nombre del Evento</label>
+                            <input type="text" name="eventName" onChange={handleChange} value={formData.eventName || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Lugar</label>
+                            <input type="text" name="location" onChange={handleChange} value={formData.location || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                        </div>
+                    </>
+                );
+            case 'Investigación':
+                 return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Proyecto</label>
+                            <input type="text" name="project" onChange={handleChange} value={formData.project || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Rol</label>
+                            <input type="text" name="role" onChange={handleChange} value={formData.role || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                        </div>
+                    </>
+                );
+             case 'Docencia':
+                 return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Curso / Asignatura</label>
+                            <input type="text" name="course" onChange={handleChange} value={formData.course || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-medium-text mb-1">Institución</label>
+                            <input type="text" name="institution" onChange={handleChange} value={formData.institution || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" />
+                        </div>
+                    </>
+                );
+            case 'Otro':
+                return (
+                    <div className="col-span-2">
+                        <label className="block text-sm font-medium text-medium-text mb-1">Descripción</label>
+                        <textarea name="description" onChange={handleChange} value={formData.description || ''} className="w-full p-2 border-slate-300 rounded-md shadow-sm" required />
+                    </div>
+                );
+            default:
+                return null;
         }
     };
-
+    
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div>
                 <label className="block text-sm font-medium text-medium-text mb-1">Tipo de Actividad</label>
-                <select value={activityType} onChange={e => setActivityType(e.target.value as TeacherActivityType)} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
-                    <option>Congreso</option><option>Publicación</option><option>Presentación</option><option>Investigación</option><option>Docencia</option><option>Otro</option>
+                <select value={activityType} onChange={e => setActivityType(e.currentTarget.value as TeacherActivityType)} className="w-full p-2 border-slate-300 rounded-md shadow-sm">
+                    <option>Congreso</option>
+                    <option>Publicación</option>
+                    <option>Presentación</option>
+                    <option>Investigación</option>
+                    <option>Docencia</option>
+                    <option>Otro</option>
                 </select>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
@@ -2504,15 +3142,16 @@ const TeacherProfessionalActivityForm: FC<{
 const TeacherRecordPage: FC<{
     teachers: Teacher[];
     subjects: Subject[];
-    teacherActivities: TeacherProfessionalActivity[];
-    setTeacherActivities: React.Dispatch<React.SetStateAction<TeacherProfessionalActivity[]>>;
+    teacherProfessionalActivities: TeacherProfessionalActivity[];
+    setTeacherProfessionalActivities: React.Dispatch<React.SetStateAction<TeacherProfessionalActivity[]>>;
     personalDocuments: PersonalDocument[];
     setPersonalDocuments: React.Dispatch<React.SetStateAction<PersonalDocument[]>>;
     addActivityLog: (desc: string) => void;
     onPreviewFile: (file: { name: string; url: string; type: string }) => void;
-}> = ({ teachers, subjects, teacherActivities, setTeacherActivities, personalDocuments, setPersonalDocuments, addActivityLog, onPreviewFile }) => {
+}> = ({ teachers, subjects, teacherProfessionalActivities, setTeacherProfessionalActivities, personalDocuments, setPersonalDocuments, addActivityLog, onPreviewFile }) => {
     const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState<'Asignaturas' | 'Actividad Profesional' | 'Documentos Personales'>('Asignaturas');
     const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
     const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
 
@@ -2524,574 +3163,452 @@ const TeacherRecordPage: FC<{
             t.rut.includes(searchTerm)
         ), [teachers, searchTerm]);
 
-    const [activeTab, setActiveTab] = useState<'Asignaturas Asignadas' | 'Actividad Profesional' | 'Documentos Personales'>('Asignaturas Asignadas');
-
     const teacherSubjects = useMemo(() => subjects.filter(s => s.teacherId === selectedTeacherId), [subjects, selectedTeacherId]);
-    const teacherProfessionalActivities = useMemo(() => teacherActivities.filter(a => a.teacherId === selectedTeacherId).sort((a, b) => b.date.getTime() - a.date.getTime()), [teacherActivities, selectedTeacherId]);
-    const teacherPersonalDocuments = useMemo(() => personalDocuments.filter(d => d.ownerType === 'teacher' && d.ownerId === selectedTeacherId).sort((a, b) => b.uploadDate.getTime() - a.uploadDate.getTime()), [personalDocuments, selectedTeacherId]);
+    const teacherActivities = useMemo(() => teacherProfessionalActivities.filter(a => a.teacherId === selectedTeacherId).sort((a,b) => b.date.getTime() - a.date.getTime()), [teacherProfessionalActivities, selectedTeacherId]);
+    const teacherDocuments = useMemo(() => personalDocuments.filter(d => d.ownerType === 'teacher' && d.ownerId === selectedTeacherId).sort((a,b) => b.uploadDate.getTime() - a.uploadDate.getTime()), [personalDocuments, selectedTeacherId]);
 
     const handleSaveActivity = (activityData: Omit<TeacherProfessionalActivity, 'id'>) => {
         const newActivity = { ...activityData, id: Date.now() } as TeacherProfessionalActivity;
-        setTeacherActivities(prev => [newActivity, ...prev]);
-        addActivityLog(`Nueva actividad profesional registrada para el docente ${selectedTeacher?.name} ${selectedTeacher?.lastName}.`);
+        setTeacherProfessionalActivities(prev => [newActivity, ...prev]);
+        addActivityLog(`Nueva actividad profesional registrada para ${selectedTeacher?.name} ${selectedTeacher?.lastName}.`);
         setIsActivityModalOpen(false);
     };
 
     const handleSaveDocument = (docData: Omit<PersonalDocument, 'id' | 'ownerId' | 'ownerType'>) => {
-        if (!selectedTeacherId) return;
-        const newDocument = { ...docData, id: Date.now(), ownerId: selectedTeacherId, ownerType: 'teacher' as const };
+        if(!selectedTeacherId) return;
+        const newDocument = {
+            ...docData,
+            id: Date.now(),
+            ownerId: selectedTeacherId,
+            ownerType: 'teacher' as const
+        };
         setPersonalDocuments(prev => [newDocument, ...prev]);
         addActivityLog(`Nuevo documento personal subido para ${selectedTeacher?.name} ${selectedTeacher?.lastName}.`);
         setIsDocumentModalOpen(false);
     }
     
-    if (selectedTeacher) {
+     if (selectedTeacher) {
         const age = calculateAge(selectedTeacher.birthDate);
         return (
-            <>
+             <>
                 <button onClick={() => setSelectedTeacherId(null)} className="flex items-center text-sm font-medium text-primary hover:text-primary-hover mb-6">
                     <ChevronLeftIcon className="w-5 h-5 mr-1" />
                     Volver a la lista de docentes
                 </button>
                 <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                    <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-6">
+                     <div className="flex items-start space-x-6">
                         <img src={selectedTeacher.photo} alt="Foto de perfil" className="w-24 h-24 rounded-full object-cover" />
                         <div>
-                            <h1 className="text-2xl font-bold text-dark-text">{selectedTeacher.name} {selectedTeacher.lastName}</h1>
+                            <div className="flex items-center space-x-3">
+                                <h1 className="text-2xl font-bold text-dark-text">{selectedTeacher.name} {selectedTeacher.lastName}</h1>
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-200 text-slate-800`}>{selectedTeacher.teacherType}</span>
+                            </div>
                             <p className="text-medium-text">{selectedTeacher.rut}</p>
-                            <p className="text-sm text-medium-text mt-2">{age} años | Ingreso: {selectedTeacher.admissionYear} | {selectedTeacher.email}</p>
-                            <p className="text-sm text-medium-text mt-1">Tipo: <span className="font-semibold">{selectedTeacher.teacherType}</span> | Postgrado: <span className="font-semibold">{selectedTeacher.postgradUniversity}</span></p>
+                             <p className="text-sm text-medium-text mt-2">
+                                {age} años | {selectedTeacher.email}
+                            </p>
                         </div>
                     </div>
                 </div>
-
-                <div className="border-b border-slate-200">
+                 <div className="border-b border-slate-200">
                     <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                        <button onClick={() => setActiveTab('Asignaturas Asignadas')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Asignaturas Asignadas' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Asignaturas</button>
+                        <button onClick={() => setActiveTab('Asignaturas')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Asignaturas' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Asignaturas Dictadas</button>
                         <button onClick={() => setActiveTab('Actividad Profesional')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Actividad Profesional' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Actividad Profesional</button>
                         <button onClick={() => setActiveTab('Documentos Personales')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'Documentos Personales' ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text hover:border-slate-300'}`}>Documentos Personales</button>
                     </nav>
                 </div>
-                
-                 <div className="mt-6">
-                    {activeTab === 'Asignaturas Asignadas' && (
-                        <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+                <div className="mt-6">
+                    {activeTab === 'Asignaturas' && (
+                        <div className="bg-white shadow-md rounded-lg overflow-hidden">
                             <table className="min-w-full divide-y divide-slate-200">
-                                <thead className="bg-slate-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase">Asignatura</th><th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase">Código</th><th className="px-6 py-3 text-center text-xs font-medium text-medium-text uppercase">Semestre</th></tr></thead>
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Asignatura</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Código</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Semestre</th>
+                                    </tr>
+                                </thead>
                                 <tbody className="bg-white divide-y divide-slate-200">
-                                    {teacherSubjects.map(subject => (<tr key={subject.id}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{subject.name}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{subject.code}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-medium-text">{subject.semester}</td>
-                                    </tr>))}
-                                    {teacherSubjects.length === 0 && (<tr><td colSpan={3} className="text-center py-4 text-medium-text">No hay asignaturas asignadas.</td></tr>)}
+                                    {teacherSubjects.map(subject => (
+                                        <tr key={subject.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{subject.name}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{subject.code}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{subject.semester}</td>
+                                        </tr>
+                                    ))}
+                                    {teacherSubjects.length === 0 && (<tr><td colSpan={3} className="text-center py-4 text-medium-text">No tiene asignaturas asignadas.</td></tr>)}
                                 </tbody>
                             </table>
                         </div>
                     )}
                     {activeTab === 'Actividad Profesional' && (
                         <div>
-                             <div className="flex justify-end mb-4"><button onClick={() => setIsActivityModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm"><PlusIcon className="w-4 h-4 mr-2" />Agregar Actividad</button></div>
-                             <div className="space-y-4">
-                                {teacherProfessionalActivities.map(activity => (<div key={activity.id} className="bg-white p-4 rounded-lg shadow-md border"><h3 className="font-bold text-dark-text">{activity.title}</h3><p className="text-sm text-medium-text">{activity.date.toLocaleDateString('es-CL')} - <span className="font-semibold">{activity.type}</span></p></div>))}
-                                {teacherProfessionalActivities.length === 0 && <p className="text-center py-8 text-medium-text">No hay actividades profesionales registradas.</p>}
-                             </div>
+                            <div className="flex justify-end mb-4">
+                                <button onClick={() => setIsActivityModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm">
+                                    <PlusIcon className="w-4 h-4 mr-2" />
+                                    Agregar Actividad
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                {teacherActivities.map(activity => (
+                                     <div key={activity.id} className="bg-white p-4 rounded-lg shadow-md border">
+                                        <h3 className="font-bold text-dark-text">{activity.title}</h3>
+                                        <p className="text-sm text-medium-text">{new Date(activity.date).toLocaleDateString('es-CL')}</p>
+                                    </div>
+                                ))}
+                                {teacherActivities.length === 0 && <p className="text-center py-8 text-medium-text">No hay actividades profesionales registradas.</p>}
+                            </div>
                         </div>
                     )}
                     {activeTab === 'Documentos Personales' && (
-                        <div>
-                             <div className="flex justify-end mb-4"><button onClick={() => setIsDocumentModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm"><PlusIcon className="w-4 h-4 mr-2" />Subir Documento</button></div>
+                         <div>
+                            <div className="flex justify-end mb-4">
+                                <button onClick={() => setIsDocumentModalOpen(true)} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg flex items-center text-sm">
+                                    <PlusIcon className="w-4 h-4 mr-2" />
+                                    Subir Documento
+                                </button>
+                            </div>
                              <div className="bg-white shadow-md rounded-lg overflow-hidden">
                                 <table className="min-w-full divide-y divide-slate-200">
-                                    <thead className="bg-slate-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase">Título</th><th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase">Fecha de Subida</th><th className="px-6 py-3 text-right text-xs font-medium text-medium-text uppercase">Acciones</th></tr></thead>
-                                    <tbody>
-                                        {teacherPersonalDocuments.map(doc => (<tr key={doc.id}><td className="px-6 py-4"><p className="text-sm font-medium text-dark-text">{doc.title}</p><p className="text-sm text-medium-text">{doc.description}</p></td><td className="px-6 py-4 whitespace-nowrap text-sm text-medium-text">{new Date(doc.uploadDate).toLocaleDateString('es-CL')}</td><td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4"><button onClick={() => onPreviewFile(doc.file)} className="text-primary hover:text-primary-hover">Previsualizar</button><a href={doc.file.url} download={doc.file.name} className="text-primary hover:text-primary-hover">Descargar</a></td></tr>))}
-                                        {teacherPersonalDocuments.length === 0 && (<tr><td colSpan={3} className="text-center py-4 text-medium-text">No hay documentos personales.</td></tr>)}
+                                     <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-medium-text uppercase tracking-wider">Título</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-medium-text uppercase tracking-wider">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-slate-200">
+                                        {teacherDocuments.map(doc => (
+                                            <tr key={doc.id}>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm font-medium text-dark-text">{doc.title}</p>
+                                                    <p className="text-sm text-medium-text">{doc.description}</p>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                                                    <button onClick={() => onPreviewFile(doc.file)} className="text-primary hover:text-primary-hover">Previsualizar</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {teacherDocuments.length === 0 && (<tr><td colSpan={2} className="text-center py-4 text-medium-text">No hay documentos.</td></tr>)}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     )}
                 </div>
-                <Modal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title="Registrar Actividad Profesional Docente">
-                    <TeacherProfessionalActivityForm teacherId={selectedTeacherId} onSave={handleSaveActivity} onCancel={() => setIsActivityModalOpen(false)} />
+                 <Modal isOpen={isActivityModalOpen} onClose={() => setIsActivityModalOpen(false)} title="Registrar Actividad Profesional">
+                    <TeacherProfessionalActivityForm 
+                        teacherId={selectedTeacherId}
+                        onSave={handleSaveActivity}
+                        onCancel={() => setIsActivityModalOpen(false)}
+                    />
                 </Modal>
                 <Modal isOpen={isDocumentModalOpen} onClose={() => setIsDocumentModalOpen(false)} title="Subir Documento Personal">
                     <PersonalDocumentForm onSave={handleSaveDocument} onCancel={() => setIsDocumentModalOpen(false)} onPreviewFile={onPreviewFile} />
                 </Modal>
             </>
-        )
-    }
+        );
+     }
 
     return (
         <div>
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+            <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-dark-text">Expediente de Docentes</h1>
-                <div className="relative"><input type="text" placeholder="Buscar docente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 rounded-full border border-slate-300 w-full sm:w-64" /><SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-light-text" /></div>
+                <div className="relative">
+                    <input type="text" placeholder="Buscar docente..." value={searchTerm} onChange={e => setSearchTerm(e.currentTarget.value)} className="pl-10 pr-4 py-2 rounded-full border border-slate-300 w-64" />
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-light-text" />
+                </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {filteredTeachers.map(teacher => (
                     <div key={teacher.id} className="bg-white rounded-lg shadow-md p-4 text-center flex flex-col items-center">
                         <img src={teacher.photo} alt="Foto de perfil" className="w-20 h-20 rounded-full object-cover mb-3" />
                         <p className="font-semibold text-dark-text">{teacher.name} {teacher.lastName}</p>
                         <p className="text-sm text-medium-text">{teacher.rut}</p>
-                        <p className="mt-2 text-xs font-semibold text-indigo-800 bg-indigo-100 px-2 py-1 rounded-full">{teacher.teacherType}</p>
-                        <button onClick={() => setSelectedTeacherId(teacher.id)} className="mt-4 w-full bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg text-sm">Ver Expediente</button>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-
-const ProfessionalActivityPage: FC<{
-    studentActivities: ProfessionalActivity[];
-    teacherActivities: TeacherProfessionalActivity[];
-    students: Student[];
-    teachers: Teacher[];
-}> = ({ studentActivities, teacherActivities, students, teachers }) => {
-    const [filter, setFilter] = useState<'Todos' | 'Alumnos' | 'Docentes'>('Todos');
-
-    const studentMap = useMemo(() => new Map(students.map(s => [s.id, `${s.name} ${s.lastName}`])), [students]);
-    const teacherMap = useMemo(() => new Map(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
-
-    const combinedActivities = useMemo(() => {
-        const mappedStudentActivities = studentActivities.map(a => ({ ...a, ownerName: studentMap.get(a.studentId) || 'N/A', ownerType: 'Alumno' as const }));
-        const mappedTeacherActivities = teacherActivities.map(a => ({ ...a, ownerName: teacherMap.get(a.teacherId) || 'N/A', ownerType: 'Docente' as const }));
-        
-        const all = [...mappedStudentActivities, ...mappedTeacherActivities];
-        
-        return all.sort((a, b) => b.date.getTime() - a.date.getTime());
-    }, [studentActivities, teacherActivities, studentMap, teacherMap]);
-    
-    const filteredActivities = useMemo(() => {
-        if (filter === 'Alumnos') return combinedActivities.filter(a => a.ownerType === 'Alumno');
-        if (filter === 'Docentes') return combinedActivities.filter(a => a.ownerType === 'Docente');
-        return combinedActivities;
-    }, [combinedActivities, filter]);
-    
-    return (
-        <div>
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-dark-text">Actividad Profesional</h1>
-                <div className="flex space-x-2 bg-slate-200 p-1 rounded-lg">
-                    <button onClick={() => setFilter('Todos')} className={`px-4 py-1.5 text-sm font-semibold rounded-md ${filter === 'Todos' ? 'bg-white shadow' : 'text-slate-600'}`}>Todos</button>
-                    <button onClick={() => setFilter('Alumnos')} className={`px-4 py-1.5 text-sm font-semibold rounded-md ${filter === 'Alumnos' ? 'bg-white shadow' : 'text-slate-600'}`}>Alumnos</button>
-                    <button onClick={() => setFilter('Docentes')} className={`px-4 py-1.5 text-sm font-semibold rounded-md ${filter === 'Docentes' ? 'bg-white shadow' : 'text-slate-600'}`}>Docentes</button>
-                </div>
-            </div>
-             <div className="space-y-4">
-                {filteredActivities.map(activity => (
-                     <div key={`${activity.ownerType}-${activity.id}`} className="bg-white p-4 rounded-lg shadow-md border">
-                        <h3 className="font-bold text-dark-text">{activity.title}</h3>
-                        <p className="text-sm text-medium-text">{activity.date.toLocaleDateString('es-CL')} - <span className="font-semibold">{activity.type}</span></p>
-                        <div className="mt-2 text-sm text-dark-text flex items-center">
-                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full mr-2 ${activity.ownerType === 'Alumno' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{activity.ownerType}</span>
-                            <span>{activity.ownerName}</span>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-
-// --- Dashboard & Placeholder Components ---
-
-const StatCard: FC<{ icon: React.ReactNode, title: string, value: string | number, color: string }> = ({ icon, title, value, color }) => (
-    <div className="bg-white p-6 rounded-lg shadow-md flex items-center">
-        <div className={`rounded-full p-3 ${color}`}>
-            {icon}
-        </div>
-        <div className="ml-4">
-            <p className="text-sm text-medium-text font-medium">{title}</p>
-            <p className="text-2xl font-bold text-dark-text">{value}</p>
-        </div>
-    </div>
-);
-
-type Page = 'Dashboard' | 'Alumnos' | 'Docentes' | 'Asignaturas' | 'Calificaciones' | 'Expediente Alumnos' | 'Calendario' | 'Noticias' | 'Documentos Oficiales' | 'Registro Reuniones' | 'Configuracion' | 'Expediente Docentes' | 'Actividad Profesional';
-
-const Dashboard: FC<{ 
-    studentCount: number; 
-    teacherCount: number; 
-    subjectCount: number; 
-    activityLog: ActivityLog[];
-    calendarEvents: CalendarEvent[];
-    newsArticles: NewsArticle[];
-    setCurrentPage: (page: Page) => void;
-}> = ({ studentCount, teacherCount, subjectCount, activityLog, calendarEvents, newsArticles, setCurrentPage }) => {
-    
-    const upcomingEvents = useMemo(() => 
-        calendarEvents
-            .filter(event => event.start >= new Date())
-            .slice(0, 4), 
-        [calendarEvents]
-    );
-
-    const latestNews = useMemo(() => newsArticles.slice(0, 2), [newsArticles]);
-
-    const getEventTypeColor = (type: CalendarEvent['type']) => {
-        switch(type) {
-            case 'Examen': return 'bg-red-500';
-            case 'Clase': return 'bg-blue-500';
-            case 'Feriado': return 'bg-green-500';
-            case 'Evento': return 'bg-amber-500';
-        }
-    };
-
-    return (
-        <div>
-            <h1 className="text-2xl font-bold text-dark-text mb-6">Panel de Control</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <StatCard 
-                    icon={<UsersIcon className="h-6 w-6 text-indigo-600" />} 
-                    title="Alumnos Activos" 
-                    value={studentCount} 
-                    color="bg-indigo-100" 
-                />
-                <StatCard 
-                    icon={<UserIcon className="h-6 w-6 text-green-600" />} 
-                    title="Docentes" 
-                    value={teacherCount} 
-                    color="bg-green-100" 
-                />
-                <StatCard 
-                    icon={<BookOpenIcon className="h-6 w-6 text-amber-600" />} 
-                    title="Asignaturas" 
-                    value={subjectCount} 
-                    color="bg-amber-100" 
-                />
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-                <div className="xl:col-span-2 bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-xl font-bold text-dark-text mb-4">Actividad Reciente</h2>
-                    <ul className="divide-y divide-slate-200">
-                        {activityLog.length > 0 ? (
-                            activityLog.slice(0, 5).map(log => (
-                               <li key={log.id} className="py-3">
-                                    <p className="text-sm text-dark-text">{log.description}</p>
-                                    <p className="text-xs text-medium-text">{formatRelativeTime(log.timestamp)}</p>
-                                </li>
-                            ))
-                        ) : (
-                             <li className="py-3 text-sm text-medium-text">No hay actividad reciente.</li>
-                        )}
-                    </ul>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-dark-text">Próximos Eventos</h2>
-                        <button onClick={() => setCurrentPage('Calendario')} className="text-sm font-semibold text-primary hover:text-primary-hover">
-                            Ver todos
+                        <button onClick={() => setSelectedTeacherId(teacher.id)} className="mt-4 w-full bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg text-sm">
+                            Ver Expediente
                         </button>
                     </div>
-                     <ul className="space-y-3">
-                        {upcomingEvents.length > 0 ? upcomingEvents.map(event => (
-                            <li key={event.id} className="flex items-start space-x-3">
-                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5 ${getEventTypeColor(event.type)}`}></div>
-                                <div>
-                                    <p className="text-sm text-dark-text font-medium leading-tight">{event.title}</p>
-                                    <p className="text-xs text-medium-text">{event.start.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })}</p>
-                                </div>
-                            </li>
-                        )) : <p className="text-sm text-medium-text">No hay eventos próximos.</p>}
-                    </ul>
-                </div>
-            </div>
-            
-            <div>
-                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-dark-text">Últimas Noticias</h2>
-                    <button onClick={() => setCurrentPage('Noticias')} className="text-sm font-semibold text-primary hover:text-primary-hover">
-                        Ver todas &rarr;
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {latestNews.map(article => (
-                         <div key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden flex">
-                            <img src={article.imageUrl || 'https://via.placeholder.com/400x200'} alt={article.title} className="w-1/3 h-full object-cover"/>
-                            <div className="p-4 flex flex-col">
-                                <h3 className="text-md font-bold text-dark-text mb-1">{article.title}</h3>
-                                <p className="text-xs text-medium-text mb-2">{article.date.toLocaleDateString('es-CL')}</p>
-                                <p className="text-sm text-dark-text flex-grow hidden sm:block">{article.content.substring(0, 60)}...</p>
-                                <button onClick={() => setCurrentPage('Noticias')} className="mt-2 text-sm font-semibold text-primary hover:text-primary-hover self-start">
-                                    Leer más
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                ))}
             </div>
         </div>
     );
 };
 
-const PlaceholderPage: FC<{ title: string }> = ({ title }) => (
-    <div>
-        <h1 className="text-2xl font-bold text-dark-text">{title}</h1>
-        <p className="text-medium-text mt-4">Esta sección está en construcción.</p>
-    </div>
-);
-
-
-// --- Main App Component ---
+type Page = 'Dashboard' | 'Alumnos' | 'Docentes' | 'Asignaturas' | 'Calificaciones' | 'Expediente Alumnos' | 'Expediente Docentes' | 'Calendario' | 'Noticias' | 'Documentos Oficiales' | 'Registro de Reuniones';
 
 const App: FC = () => {
-    const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
-    const [students, setStudents] = useState<Student[]>(initialStudents);
-    const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
-    const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
-    const [grades, setGrades] = useState<Grade[]>(initialGrades);
-    const [anotaciones, setAnotaciones] = useState<Anotacion[]>(initialAnotaciones);
-    const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
-    const [newsArticles, setNewsArticles] = useState<NewsArticle[]>(initialNewsArticles);
-    const [gradeReports, setGradeReports] = useState<GradeReport[]>(initialGradeReports);
-    const [officialDocuments, setOfficialDocuments] = useState<OfficialDocument[]>(initialOfficialDocuments);
-    const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>(initialMeetingRecords);
-    const [professionalActivities, setProfessionalActivities] = useState<ProfessionalActivity[]>(initialProfessionalActivities);
-    const [teacherProfessionalActivities, setTeacherProfessionalActivities] = useState<TeacherProfessionalActivity[]>(initialTeacherProfessionalActivities);
-    const [personalDocuments, setPersonalDocuments] = useState<PersonalDocument[]>(initialPersonalDocuments);
-    const [activityLog, setActivityLog] = useState<ActivityLog[]>(initialActivityLog);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    
-    const [reportModalData, setReportModalData] = useState<{ grade: Grade; report?: GradeReport } | null>(null);
-    const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
+  const [page, setPage] = useState<Page>('Dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Data states
+  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [teachers, setTeachers] = useState<Teacher[]>(initialTeachers);
+  const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
+  const [grades, setGrades] = useState<Grade[]>(initialGrades);
+  const [activityLog, setActivityLog] = useState<ActivityLog[]>(initialActivityLog);
+  const [anotaciones, setAnotaciones] = useState<Anotacion[]>(initialAnotaciones);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(initialCalendarEvents);
+  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>(initialNewsArticles);
+  const [gradeReports, setGradeReports] = useState<GradeReport[]>(initialGradeReports);
+  const [officialDocuments, setOfficialDocuments] = useState<OfficialDocument[]>(initialOfficialDocuments);
+  const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>(initialMeetingRecords);
+  const [professionalActivities, setProfessionalActivities] = useState<ProfessionalActivity[]>(initialProfessionalActivities);
+  const [teacherProfessionalActivities, setTeacherProfessionalActivities] = useState<TeacherProfessionalActivity[]>(initialTeacherProfessionalActivities);
+  const [personalDocuments, setPersonalDocuments] = useState<PersonalDocument[]>(initialPersonalDocuments);
 
-    const studentMap = useMemo(() => new Map<number, Student>(students.map(s => [s.id, s])), [students]);
-    const teacherMap = useMemo(() => new Map<number, string>(teachers.map(t => [t.id, `${t.name} ${t.lastName}`])), [teachers]);
-    const subjectMap = useMemo(() => new Map<number, Subject>(subjects.map(s => [s.id, s])), [subjects]);
+  const [reportModalData, setReportModalData] = useState<{ grade: Grade, report?: GradeReport } | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; type: string } | null>(null);
 
-    const addActivityLog = (description: string) => {
-        const newLog: ActivityLog = {
-            id: Date.now(),
-            timestamp: new Date(),
-            description: description
-        };
-        setActivityLog(prev => [newLog, ...prev]);
+  const addActivityLog = (description: string) => {
+      const newLog: ActivityLog = { id: Date.now(), timestamp: new Date(), description };
+      setActivityLog(prev => [newLog, ...prev.slice(0, 4)]);
+  };
+  
+  const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.API_KEY as string }), []);
+
+
+  const handleOpenReportModal = (data: { grade: Grade, report?: GradeReport }) => {
+    setReportModalData(data);
+  };
+
+  const handleSendReport = (gradeId: number, feedback: string) => {
+    const grade = grades.find(g => g.id === gradeId);
+    if (!grade) return;
+
+    const finalGrade = calculateFinalGrade(grade);
+    if(finalGrade === null) return;
+
+    const student = students.find(s => s.id === grade.studentId);
+    const subject = subjects.find(s => s.id === grade.subjectId);
+    if (!student || !subject) return;
+
+    const newReport: GradeReport = {
+        id: Date.now(),
+        gradeId,
+        studentId: student.id,
+        subjectId: subject.id,
+        teacherId: subject.teacherId,
+        generationDate: new Date(),
+        gradeSummary: {
+            grade1: grade.grade1,
+            grade2: grade.grade2,
+            grade3: grade.grade3,
+            finalGrade: finalGrade,
+        },
+        competencyScores: grade.competencyScores || [],
+        feedback: feedback,
+        status: 'Pendiente Aceptación',
+        signatureDate: new Date(),
     };
     
-    const handleSendReport = (gradeId: number, feedback: string) => {
-        const grade = grades.find(g => g.id === gradeId);
-        if (!grade) return;
-        
-        const finalGrade = calculateFinalGrade(grade);
-        if (finalGrade === null) {
-            alert("No se pueden finalizar calificaciones incompletas.");
-            return;
-        }
+    setGradeReports(prev => [...prev, newReport]);
+    addActivityLog(`Reporte para ${student.name} en ${subject.name} enviado.`);
+    setReportModalData(null);
+    console.log(`Simulando envío de email a ${student.email}: Su reporte de ${subject.name} ha sido enviado.`);
 
-        const studentName = studentMap.get(grade.studentId)?.name || 'N/A';
-        const subject = subjectMap.get(grade.subjectId);
-        
-        const newReport: GradeReport = {
-            id: Date.now(),
-            gradeId: grade.id,
-            studentId: grade.studentId,
-            subjectId: grade.subjectId,
-            teacherId: subject?.teacherId,
-            generationDate: new Date(),
-            gradeSummary: {
-                grade1: grade.grade1,
-                grade2: grade.grade2,
-                grade3: grade.grade3,
-                finalGrade: finalGrade,
-            },
-            competencyScores: grade.competencyScores || [],
-            feedback: feedback,
-            status: 'Pendiente Aceptación',
-            signatureDate: new Date(),
-        };
+  };
+  
+  const handleAcceptReport = (reportId: number) => {
+      setGradeReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'Completado', studentAcceptanceDate: new Date() } : r));
+      const report = gradeReports.find(r => r.id === reportId);
+      if (report) {
+          const student = students.find(s => s.id === report.studentId);
+          addActivityLog(`Reporte de ${student?.name} ${student?.lastName} ha sido aceptado.`);
+      }
+  };
 
-        setGradeReports(prev => [...prev, newReport]);
-        setGrades(prev => prev.map(g => g.id === gradeId ? { ...g, isFinalized: true, lastModified: new Date().toISOString() } : g));
-        addActivityLog(`Reporte para ${studentName} en ${subject?.name} ha sido enviado.`);
-        setReportModalData(null);
-    };
-    
-    const handleAcceptReport = (reportId: number) => {
-        const report = gradeReports.find(r => r.id === reportId);
-        if (!report) return;
 
-        setGradeReports(prev => prev.map(r =>
-            r.id === reportId
-                ? { ...r, status: 'Completado', studentAcceptanceDate: new Date() }
-                : r
-        ));
-        const student = studentMap.get(report.studentId);
-        const subject = subjectMap.get(report.subjectId);
-        addActivityLog(`Reporte de ${subject?.name} para ${student?.name} ha sido aceptado por el alumno.`);
-    };
-    
-    const renderPage = () => {
-        switch (currentPage) {
-            case 'Dashboard':
-                return <Dashboard 
-                    studentCount={students.length} 
-                    teacherCount={teachers.length} 
-                    subjectCount={subjects.length} 
-                    activityLog={activityLog}
-                    calendarEvents={calendarEvents}
-                    newsArticles={newsArticles}
-                    setCurrentPage={setCurrentPage}
-                />;
-            case 'Alumnos':
-                return <StudentsPage students={students} setStudents={setStudents} addActivityLog={addActivityLog} />;
-            case 'Docentes':
-                return <TeachersPage teachers={teachers} setTeachers={setTeachers} addActivityLog={addActivityLog} />;
-            case 'Asignaturas':
-                return <SubjectsPage subjects={subjects} setSubjects={setSubjects} teachers={teachers} addActivityLog={addActivityLog} />;
-            case 'Calificaciones':
-                return <GradesPage 
-                    grades={grades} 
-                    setGrades={setGrades} 
-                    students={students} 
-                    subjects={subjects} 
-                    gradeReports={gradeReports} 
-                    onOpenReportModal={setReportModalData}
-                    addActivityLog={addActivityLog} 
-                />;
-            case 'Expediente Alumnos':
-                return <StudentRecordPage 
-                    students={students} 
-                    teachers={teachers} 
-                    subjects={subjects} 
-                    grades={grades} 
-                    anotaciones={anotaciones} 
-                    setAnotaciones={setAnotaciones} 
-                    gradeReports={gradeReports}
-                    professionalActivities={professionalActivities}
-                    setProfessionalActivities={setProfessionalActivities}
-                    personalDocuments={personalDocuments}
-                    setPersonalDocuments={setPersonalDocuments}
-                    onOpenReportModal={setReportModalData}
-                    onAcceptReport={handleAcceptReport}
-                    addActivityLog={addActivityLog} 
-                    onPreviewFile={setPreviewFile}
-                />;
-            case 'Expediente Docentes':
-                return <TeacherRecordPage
-                    teachers={teachers}
-                    subjects={subjects}
-                    teacherActivities={teacherProfessionalActivities}
-                    setTeacherActivities={setTeacherProfessionalActivities}
-                    personalDocuments={personalDocuments}
-                    setPersonalDocuments={setPersonalDocuments}
-                    addActivityLog={addActivityLog}
-                    onPreviewFile={setPreviewFile}
-                />;
-            case 'Actividad Profesional':
-                return <ProfessionalActivityPage
-                    studentActivities={professionalActivities}
-                    teacherActivities={teacherProfessionalActivities}
-                    students={students}
-                    teachers={teachers}
-                />;
-            case 'Calendario':
-                return <CalendarPage events={calendarEvents} setEvents={setCalendarEvents} addActivityLog={addActivityLog} />;
-            case 'Noticias':
-                return <NewsPage articles={newsArticles} setArticles={setNewsArticles} addActivityLog={addActivityLog} onPreviewFile={setPreviewFile} />;
-            case 'Documentos Oficiales':
-                return <OfficialDocumentsPage documents={officialDocuments} setDocuments={setOfficialDocuments} addActivityLog={addActivityLog} onPreviewFile={setPreviewFile} />;
-            case 'Registro Reuniones':
-                return <MeetingRecordsPage meetings={meetingRecords} setMeetings={setMeetingRecords} students={students} teachers={teachers} addActivityLog={addActivityLog} />;
-            case 'Configuracion':
-                return <PlaceholderPage title="Configuración" />;
-            default:
-                return <div>Página no encontrada</div>;
-        }
-    };
+  const renderPage = () => {
+    switch (page) {
+      case 'Dashboard':
+        const recentGrades = grades
+            .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())
+            .slice(0, 5);
 
-    const NavLink: FC<{ icon: React.ReactElement<{ className?: string }>; label: Page }> = ({ icon, label }) => (
-        <a
-            href="#"
-            onClick={(e) => {
-                e.preventDefault();
-                setCurrentPage(label);
-                setIsSidebarOpen(false);
-            }}
-            className={`flex items-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${currentPage === label ? 'bg-primary text-white' : 'text-slate-200 hover:bg-secondary'}`}
-        >
-            {React.cloneElement(icon, { className: 'w-5 h-5 mr-3' })}
-            {label}
-        </a>
-    );
-
-    const sidebarContent = (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-center h-16 border-b border-slate-700">
-          <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 7L12 12L22 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 22V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 4.5L12 9L4 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M17 9.5V14.5L12 17.5L7 14.5V9.5L12 12L17 9.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <h1 className="text-xl font-bold text-white ml-3">GRUA</h1>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-            <NavLink icon={<MenuIcon />} label="Dashboard" />
-            <NavLink icon={<UsersIcon />} label="Alumnos" />
-            <NavLink icon={<UserIcon />} label="Docentes" />
-            <NavLink icon={<BookOpenIcon />} label="Asignaturas" />
-            <NavLink icon={<ClipboardIcon />} label="Calificaciones" />
-            <NavLink icon={<FolderIcon />} label="Expediente Alumnos" />
-            <NavLink icon={<BriefcaseIcon />} label="Expediente Docentes" />
-            <NavLink icon={<AwardIcon />} label="Actividad Profesional" />
-            <NavLink icon={<CalendarIcon />} label="Calendario" />
-            <NavLink icon={<NewspaperIcon />} label="Noticias" />
-            <NavLink icon={<FileTextIcon />} label="Documentos Oficiales" />
-            <NavLink icon={<BriefcaseIcon />} label="Registro Reuniones" />
-        </nav>
-        <div className="p-4 border-t border-slate-700">
-          <NavLink icon={<SettingsIcon />} label="Configuracion" />
-        </div>
-      </div>
-    );
-    
-    return (
-        <div className="flex h-screen bg-light-bg">
-            {/* Mobile Sidebar */}
-            <div className={`fixed inset-0 z-40 bg-gray-900 bg-opacity-75 transition-opacity lg:hidden ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)}></div>
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-secondary transform transition-transform lg:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-              {sidebarContent}
-            </div>
-            {/* Desktop Sidebar */}
-            <aside className="hidden lg:flex lg:flex-shrink-0 w-64 bg-secondary">
-              {sidebarContent}
-            </aside>
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="flex justify-between items-center p-4 bg-white border-b border-slate-200">
-                   <button className="lg:hidden text-dark-text" onClick={() => setIsSidebarOpen(true)} aria-label="Abrir menú">
-                      <MenuIcon className="w-6 h-6" />
-                   </button>
-                    <div className="relative hidden md:block">
-                        <input type="text" placeholder="Buscar..." className="pl-10 pr-4 py-2 rounded-full border border-slate-300 w-64" />
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-light-text" />
+        return (
+            <div>
+                 <h1 className="text-2xl font-bold text-dark-text mb-6">Dashboard</h1>
+                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main content: News and upcoming events */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* News Section */}
+                        <div>
+                            <h2 className="text-xl font-semibold text-dark-text mb-4">Últimas Noticias</h2>
+                            <div className="space-y-4">
+                            {newsArticles.slice(0, 2).map(article => (
+                                <div key={article.id} className="bg-white p-4 rounded-lg shadow-md flex items-start space-x-4">
+                                <img src={article.imageUrl} alt={article.title} className="w-32 h-20 object-cover rounded"/>
+                                <div>
+                                    <h3 className="font-bold text-dark-text">{article.title}</h3>
+                                    <p className="text-xs text-medium-text mb-1">{article.author} &bull; {article.date.toLocaleDateString('es-CL')}</p>
+                                    <p className="text-sm text-dark-text">{article.content.substring(0,80)}...</p>
+                                </div>
+                                </div>
+                            ))}
+                            </div>
+                        </div>
+                        {/* Upcoming Events Section */}
+                        <div>
+                            <h2 className="text-xl font-semibold text-dark-text mb-4">Próximos Eventos</h2>
+                            <div className="bg-white p-4 rounded-lg shadow-md">
+                                <ul className="space-y-3">
+                                {calendarEvents.filter(e => e.start > new Date()).slice(0, 4).map(event => (
+                                     <li key={event.id} className="flex items-center space-x-3">
+                                        <div className="bg-primary-light text-primary font-bold p-2 rounded-md flex flex-col items-center justify-center h-12 w-12">
+                                            <span className="text-xs uppercase">{event.start.toLocaleString('es-CL', { month: 'short' })}</span>
+                                            <span className="text-lg">{event.start.getDate()}</span>
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-dark-text text-sm">{event.title}</p>
+                                            <p className="text-xs text-medium-text">{event.type}</p>
+                                        </div>
+                                    </li>
+                                ))}
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                        <button className="text-dark-text" aria-label="Notificaciones">
-                          <BellIcon className="w-6 h-6" />
-                        </button>
+
+                    {/* Right sidebar: Activity and recent grades */}
+                    <div className="space-y-6">
+                        {/* Activity Log */}
+                        <div>
+                            <h2 className="text-xl font-semibold text-dark-text mb-4">Actividad Reciente</h2>
+                            <div className="bg-white p-4 rounded-lg shadow-md">
+                                <ul className="space-y-3">
+                                {activityLog.map(log => (
+                                    <li key={log.id}>
+                                        <p className="text-sm text-dark-text">{log.description}</p>
+                                        <p className="text-xs text-light-text">{formatRelativeTime(log.timestamp)}</p>
+                                    </li>
+                                ))}
+                                </ul>
+                            </div>
+                        </div>
+                         {/* Recent Grades */}
+                        <div>
+                            <h2 className="text-xl font-semibold text-dark-text mb-4">Calificaciones Recientes</h2>
+                             <div className="bg-white p-4 rounded-lg shadow-md">
+                                <ul className="space-y-3">
+                                    {recentGrades.map(grade => {
+                                        const student = students.find(s => s.id === grade.studentId);
+                                        const subject = subjects.find(s => s.id === grade.subjectId);
+                                        const finalGrade = calculateFinalGrade(grade);
+                                        if (!student || !subject) return null;
+                                        return (
+                                            <li key={grade.id} className="flex justify-between items-center">
+                                                <div>
+                                                    <p className="text-sm font-medium text-dark-text">{student.name} {student.lastName}</p>
+                                                    <p className="text-xs text-medium-text">{subject.name}</p>
+                                                </div>
+                                                <span className={`text-sm font-bold ${finalGrade !== null && finalGrade < 4.0 ? 'text-red-600' : 'text-dark-text'}`}>
+                                                    {finalGrade?.toFixed(1) || '-'}
+                                                </span>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                </header>
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-light-bg p-6">
-                    {renderPage()}
-                </main>
+                 </div>
             </div>
-            {reportModalData && (
-                 <ReportModal 
-                    isOpen={!!reportModalData}
-                    onClose={() => setReportModalData(null)}
-                    data={reportModalData}
-                    onSendReport={handleSendReport}
-                    onAcceptReport={handleAcceptReport}
-                    student={studentMap.get(reportModalData.grade.studentId)}
-                    subjectMap={subjectMap}
-                    teacherMap={teacherMap}
-                />
-            )}
-            <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
+        );
+      case 'Alumnos': return <StudentsPage students={students} setStudents={setStudents} addActivityLog={addActivityLog}/>;
+      case 'Docentes': return <TeachersPage teachers={teachers} setTeachers={setTeachers} addActivityLog={addActivityLog}/>;
+      case 'Asignaturas': return <SubjectsPage subjects={subjects} setSubjects={setSubjects} teachers={teachers} addActivityLog={addActivityLog}/>;
+      case 'Calificaciones': return <GradesPage grades={grades} setGrades={setGrades} students={students} subjects={subjects} gradeReports={gradeReports} onOpenReportModal={handleOpenReportModal} addActivityLog={addActivityLog}/>;
+      case 'Expediente Alumnos': return <StudentRecordPage students={students} teachers={teachers} subjects={subjects} grades={grades} anotaciones={anotaciones} setAnotaciones={setAnotaciones} gradeReports={gradeReports} professionalActivities={professionalActivities} setProfessionalActivities={setProfessionalActivities} personalDocuments={personalDocuments} setPersonalDocuments={setPersonalDocuments} onOpenReportModal={setReportModalData} onAcceptReport={handleAcceptReport} addActivityLog={addActivityLog} onPreviewFile={setPreviewFile} ai={ai} />;
+      case 'Expediente Docentes': return <TeacherRecordPage teachers={teachers} subjects={subjects} teacherProfessionalActivities={teacherProfessionalActivities} setTeacherProfessionalActivities={setTeacherProfessionalActivities} personalDocuments={personalDocuments} setPersonalDocuments={setPersonalDocuments} addActivityLog={addActivityLog} onPreviewFile={setPreviewFile} />;
+      case 'Calendario': return <CalendarPage events={calendarEvents} setEvents={setCalendarEvents} addActivityLog={addActivityLog}/>;
+      case 'Noticias': return <NewsPage articles={newsArticles} setArticles={setNewsArticles} addActivityLog={addActivityLog} onPreviewFile={setPreviewFile} />;
+      case 'Documentos Oficiales': return <OfficialDocumentsPage documents={officialDocuments} setDocuments={setOfficialDocuments} addActivityLog={addActivityLog} onPreviewFile={setPreviewFile} />;
+      case 'Registro de Reuniones': return <MeetingRecordsPage meetings={meetingRecords} setMeetings={setMeetingRecords} students={students} teachers={teachers} addActivityLog={addActivityLog} ai={ai} />;
+      default: return <div>Página no encontrada</div>;
+    }
+  };
+
+  const navItems: { name: Page, icon: React.ReactElement }[] = [
+    { name: 'Dashboard', icon: <MenuIcon className="w-5 h-5"/> },
+    { name: 'Alumnos', icon: <UserIcon className="w-5 h-5"/> },
+    { name: 'Docentes', icon: <UsersIcon className="w-5 h-5"/> },
+    { name: 'Asignaturas', icon: <BookOpenIcon className="w-5 h-5"/> },
+    { name: 'Calificaciones', icon: <ClipboardIcon className="w-5 h-5"/> },
+    { name: 'Expediente Alumnos', icon: <FolderIcon className="w-5 h-5"/> },
+    { name: 'Expediente Docentes', icon: <FolderIcon className="w-5 h-5"/> },
+    { name: 'Calendario', icon: <CalendarIcon className="w-5 h-5"/> },
+    { name: 'Noticias', icon: <NewspaperIcon className="w-5 h-5"/> },
+    { name: 'Documentos Oficiales', icon: <FileTextIcon className="w-5 h-5"/> },
+    { name: 'Registro de Reuniones', icon: <BriefcaseIcon className="w-5 h-5"/> },
+  ];
+
+  const Sidebar = () => (
+      <aside className={`fixed top-0 left-0 z-40 w-64 h-screen pt-20 transition-transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} bg-secondary sm:translate-x-0`}>
+        <div className="h-full px-3 pb-4 overflow-y-auto">
+            <ul className="space-y-2 font-medium">
+                {navItems.map(item => (
+                    <li key={item.name}>
+                        <a href="#" onClick={() => { setPage(item.name); setIsSidebarOpen(false); }} className={`flex items-center p-2 rounded-lg text-white hover:bg-slate-700 ${page === item.name ? 'bg-primary' : ''}`}>
+                            {item.icon}
+                            <span className="ml-3">{item.name}</span>
+                        </a>
+                    </li>
+                ))}
+            </ul>
         </div>
-    );
+      </aside>
+  );
+
+  return (
+    <div className="min-h-screen">
+      <nav className="fixed top-0 z-50 w-full bg-secondary border-b border-slate-700">
+        <div className="px-3 py-3 lg:px-5 lg:pl-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-start">
+              <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} type="button" className="inline-flex items-center p-2 text-sm text-gray-400 rounded-lg sm:hidden hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-gray-600">
+                <MenuIcon className="w-6 h-6"/>
+              </button>
+              <a href="#" onClick={() => setPage('Dashboard')} className="flex ml-2 md:mr-24">
+                <span className="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap text-white">GRUA</span>
+              </a>
+            </div>
+            <div className="flex items-center space-x-4">
+                <button className="text-gray-400 hover:text-white relative">
+                    <BellIcon className="w-6 h-6"/>
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
+                </button>
+                <img className="w-8 h-8 rounded-full" src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="user photo" />
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <Sidebar />
+      
+      <main className="p-4 sm:ml-64">
+        <div className="pt-20">
+          {renderPage()}
+        </div>
+      </main>
+{/* FIX: Corrected the props for ReportModal, restored the end of the file, and added a default export. */}
+      <ReportModal 
+          isOpen={!!reportModalData}
+          onClose={() => setReportModalData(null)}
+          data={reportModalData}
+          onSendReport={handleSendReport}
+          onAcceptReport={handleAcceptReport}
+          student={students.find(s => s.id === reportModalData?.grade.studentId)}
+          subjectMap={new Map(subjects.map(s => [s.id, s]))}
+          teacherMap={new Map(teachers.map(t => [t.id, `${t.name} ${t.lastName}`]))}
+          ai={ai}
+      />
+
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
+    </div>
+  );
 };
 
 export default App;
