@@ -1,4 +1,4 @@
-import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument } from './types';
+import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, SiteLog } from './types';
 
 // Placeholder base64 images for demonstration
 const placeholderUserLight = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E1YjRjYyIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
@@ -7,14 +7,14 @@ const placeholderNewsImage = 'https://images.unsplash.com/photo-1504711434969-e3
 
 
 export const initialStudents: Student[] = [
-  { id: 1, name: 'Ana', lastName: 'González', rut: '19.123.456-7', email: 'ana.gonzalez@email.com', photo: placeholderUserLight, admissionYear: 2022, phone: '+56912345678', undergradUniversity: 'Universidad de Chile', nationality: 'Chilena', birthDate: '1998-03-15' },
-  { id: 2, name: 'Luis', lastName: 'Martínez', rut: '20.987.654-3', email: 'luis.martinez@email.com', photo: placeholderUserDark, admissionYear: 2023, phone: '+56987654321', undergradUniversity: 'P. Universidad Católica', nationality: 'Chilena', birthDate: '1999-11-20' },
-  { id: 3, name: 'Carla', lastName: 'Soto', rut: '21.456.789-K', email: 'carla.soto@email.com', photo: placeholderUserLight, admissionYear: 2024, phone: '+56911223344', undergradUniversity: 'Universidad de Concepción', nationality: 'Chilena', birthDate: '2000-07-01' },
+  { id: 1, name: 'Ana', lastName: 'González', rut: '19.123.456-7', email: 'ana.gonzalez@email.com', photo: placeholderUserLight, admissionDate: '2022-03-01', phone: '+56912345678', undergradUniversity: 'Universidad de Chile', nationality: 'Chilena', birthDate: '1998-03-15' },
+  { id: 2, name: 'Luis', lastName: 'Martínez', rut: '20.987.654-3', email: 'luis.martinez@email.com', photo: placeholderUserDark, admissionDate: '2023-03-01', phone: '+56987654321', undergradUniversity: 'P. Universidad Católica', nationality: 'Chilena', birthDate: '1999-11-20' },
+  { id: 3, name: 'Carla', lastName: 'Soto', rut: '21.456.789-K', email: 'carla.soto@email.com', photo: placeholderUserLight, admissionDate: '2024-03-01', phone: '+56911223344', undergradUniversity: 'Universidad de Concepción', nationality: 'Chilena', birthDate: '2000-07-01' },
 ];
 
 export const initialTeachers: Teacher[] = [
-  { id: 1, name: 'Ricardo', lastName: 'Pérez', rut: '12.345.678-9', photo: placeholderUserDark, admissionYear: 2010, teacherType: 'Planta', postgradUniversity: 'Stanford University', email: 'ricardo.perez@grua.cl', phone: '+56955667788', birthDate: '1975-05-10' },
-  { id: 2, name: 'Mónica', lastName: 'Herrera', rut: '14.876.543-2', photo: placeholderUserLight, admissionYear: 2015, teacherType: 'Colaborador', postgradUniversity: 'Harvard University', email: 'monica.herrera@grua.cl', phone: '+56933445566', birthDate: '1982-09-25' },
+  { id: 1, name: 'Ricardo', lastName: 'Pérez', rut: '12.345.678-9', photo: placeholderUserDark, admissionDate: '2010-03-01', contractType: 'Planta', academicRank: 'Titular', postgradUniversity: 'Stanford University', email: 'ricardo.perez@grua.cl', phone: '+56955667788', birthDate: '1975-05-10' },
+  { id: 2, name: 'Mónica', lastName: 'Herrera', rut: '14.876.543-2', photo: placeholderUserLight, admissionDate: '2015-03-15', contractType: 'Honorarios', academicRank: 'Adjunto', postgradUniversity: 'Harvard University', email: 'monica.herrera@grua.cl', phone: '+56933445566', birthDate: '1982-09-25' },
 ];
 
 export const initialSubjects: Subject[] = [
@@ -67,6 +67,8 @@ export const initialActivityLog: ActivityLog[] = [
     { id: 3, timestamp: new Date(Date.now() - 86400000), description: 'Nuevo alumno Carla Soto ha sido agregada.' },
 ];
 
+export const initialSiteLog: SiteLog[] = [];
+
 export const initialAnotaciones: Anotacion[] = [
   { id: 1, studentId: 1, autorId: 1, timestamp: new Date('2024-03-15T09:00:00Z'), type: 'Positiva', text: 'Demostró excelente iniciativa durante la rotación de Radiología Pediátrica, mostrando gran interés y capacidad para aprender.' },
   { id: 2, studentId: 1, autorId: 2, timestamp: new Date('2024-04-22T14:30:00Z'), type: 'Observación', text: 'Se recomienda repasar los protocolos de contraste para tomografía computarizada, específicamente en pacientes con insuficiencia renal.' },
@@ -97,7 +99,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'Se informa a toda la comunidad académica que ha comenzado el proceso de autoevaluación con miras a la acreditación del programa para el período 2025-2029. Se invita a todos los estamentos a participar activamente en las reuniones y encuestas que se realizarán durante los próximos meses. Su participación es fundamental para el éxito de este proceso.', 
     author: 'Dirección de Postgrado', 
     date: new Date(Date.now() - 86400000 * 2), 
-    imageUrl: 'https://images.unsplash.com/photo-1581092580424-3a213694157c?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1581092580424-3a213694157c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   { 
     id: 2, 
@@ -105,7 +107,9 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'Nos complace anunciar una nueva alianza estratégica con el Hospital Clínico Metropolitano, que permitirá a nuestros residentes acceder a rotaciones en unidades de alta especialización, incluyendo neurorradiología intervencionista y radiología mamaria avanzada. Esta colaboración fortalecerá la formación práctica y la exposición a casos complejos.', 
     author: 'Coordinación Académica', 
     date: new Date(Date.now() - 86400000 * 5), 
-    imageUrl: 'https://images.unsplash.com/photo-1612534948600-b1d53bfc73a6?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1612534948600-b1d53bfc73a6?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    link: 'https://www.hospital-clinico.cl',
+    linkText: 'Leer más en el sitio del Hospital'
   },
   { 
     id: 3, 
@@ -113,7 +117,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'El próximo mes se llevará a cabo el Seminario Internacional de Física Médica en nuestro auditorio principal. Contaremos con la presencia de expositores de renombre mundial que discutirán los últimos avances en dosimetría, protección radiológica y control de calidad en imagenología. Las inscripciones ya están abiertas para toda la comunidad universitaria.', 
     author: 'Dr. Ricardo Pérez', 
     date: new Date(Date.now() - 86400000 * 10),
-    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   }
 ];
 

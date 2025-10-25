@@ -5,7 +5,7 @@ export interface Student {
   rut: string;
   email: string;
   photo?: string;
-  admissionYear: number;
+  admissionDate: string; // Changed from admissionYear
   phone: string;
   undergradUniversity: string;
   nationality: string;
@@ -18,8 +18,9 @@ export interface Teacher {
   lastName: string;
   rut: string;
   photo?: string;
-  admissionYear: number;
-  teacherType: 'Planta' | 'Colaborador' | 'Adjunto';
+  admissionDate: string; // Changed from admissionYear
+  contractType: 'Planta' | 'Honorarios' | 'Ad Honorem'; // New field
+  academicRank: 'Adjunto' | 'Titular' | 'Colaborador'; // New field
   postgradUniversity: string;
   email: string;
   phone: string;
@@ -40,9 +41,9 @@ export interface Grade {
   id: number;
   studentId: number;
   subjectId: number;
-  grade1?: number;
-  grade2?: number;
-  grade3?: number;
+  grade1?: number; // Examen Teórico
+  grade2?: number; // Promedio Competencias
+  grade3?: number; // Actividad Docente
   competencyScores?: (number | null)[];
   lastModified: string;
   isFinalized: boolean;
@@ -100,6 +101,8 @@ export interface NewsArticle {
   date: Date;
   imageUrl?: string;
   attachments?: { name: string; url: string; type: string }[];
+  link?: string;
+  linkText?: string;
 }
 
 export interface OfficialDocument {
@@ -124,6 +127,14 @@ export interface MeetingRecord {
     externals: string[];
   };
   streamingLink?: string;
+}
+
+export interface SiteLog {
+  id: number;
+  timestamp: Date;
+  user: string;
+  action: string;
+  description: string;
 }
 
 // --- Student Professional Activity Types ---
