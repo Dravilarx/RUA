@@ -260,3 +260,36 @@ export interface PersonalDocument {
   uploadDate: Date;
   file: { name: string; url: string; type: string };
 }
+
+// --- Quick Link Type ---
+export interface QuickLink {
+  id: number;
+  label: string;
+  url: string;
+}
+
+// --- Bookmark Type ---
+export interface Bookmark {
+  id: number;
+  label: string;
+  view: 'DASHBOARD' | 'STUDENTS' | 'TEACHERS' | 'SUBJECTS' | 'GRADES' | 'STUDENT_FILES' | 'TEACHER_FILES' | 'CALENDAR' | 'NEWS' | 'DOCUMENTS' | 'MEETINGS' | 'SITE_MANAGEMENT' | 'SURVEYS';
+  iconName: string;
+}
+
+// --- Survey Types ---
+
+export interface SurveyAnswer {
+  questionId: number;
+  answer: string;
+}
+
+export interface Survey {
+  id: number;
+  gradeId: number;
+  studentId: number;
+  subjectId: number;
+  teacherId?: number;
+  status: 'Incompleta' | 'Completada';
+  completionDate?: string;
+  answers: SurveyAnswer[];
+}

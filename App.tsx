@@ -1,8 +1,217 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports, initialOfficialDocuments, initialMeetingRecords, initialProfessionalActivities, initialTeacherProfessionalActivities, initialPersonalDocuments, initialSiteLog } from './data';
-import type { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, ActivityType, TeacherActivityType, SiteLog } from './types';
+import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports, initialOfficialDocuments, initialMeetingRecords, initialProfessionalActivities, initialTeacherProfessionalActivities, initialPersonalDocuments, initialSiteLog, initialQuickLinks, initialBookmarks, initialSurveys, surveyQuestions } from './data';
+import type { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, ActivityType, TeacherActivityType, SiteLog, QuickLink, Bookmark, Survey, SurveyAnswer } from './types';
+
+// @ts-ignore
+const { jsPDF } = window.jspdf;
 
 // --- Helper Functions ---
+
+const exportGradesToPdf = (grades: Grade[], students: Student[], subjects: Subject[], teachers: Teacher[]) => {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text("Reporte de Calificaciones", 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(`Generado el: ${new Date().toLocaleDateString('es-CL')}`, 105, 26, { align: 'center' });
+    
+    const findStudent = (id: number) => students.find(s => s.id === id);
+    const findSubject = (id: number) => subjects.find(s => s.id === id);
+    const findTeacher = (id?: number) => teachers.find(t => t.id === id);
+
+    doc.autoTable({
+        startY: 35,
+        head: [['Alumno', 'Asignatura', 'Docente a Cargo', 'Promedio', 'Estado']],
+        body: grades.map(grade => {
+            const student = findStudent(grade.studentId);
+            const subject = findSubject(grade.subjectId);
+            const teacher = findTeacher(subject?.teacherId);
+            return [
+                `${student?.name || ''} ${student?.lastName || ''}`,
+                subject?.name || 'N/A',
+                `${teacher?.name || ''} ${teacher?.lastName || 'No asignado'}`,
+                calculateFinalGrade(grade),
+                grade.isFinalized ? 'Finalizada' : 'En Progreso'
+            ];
+        })
+    });
+    
+    doc.save('reporte_calificaciones.pdf');
+};
+
+const exportGradesToCsv = (grades: Grade[], students: Student[], subjects: Subject[], teachers: Teacher[]) => {
+    const findStudent = (id: number) => students.find(s => s.id === id);
+    const findSubject = (id: number) => subjects.find(s => s.id === id);
+    const findTeacher = (id?: number) => teachers.find(t => t.id === id);
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    const header = ['Alumno', 'Asignatura', 'Docente a Cargo', 'Promedio', 'Estado'];
+    csvContent += header.join(';') + '\r\n';
+
+    grades.forEach(grade => {
+        const student = findStudent(grade.studentId);
+        const subject = findSubject(grade.subjectId);
+        const teacher = findTeacher(subject?.teacherId);
+        const row = [
+            `"${student?.name || ''} ${student?.lastName || ''}"`,
+            `"${subject?.name || 'N/A'}"`,
+            `"${teacher?.name || ''} ${teacher?.lastName || 'No asignado'}"`,
+            `"${calculateFinalGrade(grade).replace('.', ',')}"`, // Use comma for decimal in ES locale
+            `"${grade.isFinalized ? 'Finalizada' : 'En Progreso'}"`
+        ];
+        csvContent += row.join(';') + '\r\n';
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "reporte_calificaciones.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+const exportSurveysToCsv = (surveys: Survey[], students: Student[], subjects: Subject[], teachers: Teacher[]) => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    const headers = [
+        "Alumno", "Asignatura", "Docente", "Fecha Completada",
+        ...surveyQuestions.map(q => `"${q.text.replace(/"/g, '""')}"`)
+    ];
+    csvContent += headers.join(';') + '\r\n';
+
+    surveys.forEach(survey => {
+        const student = students.find(s => s.id === survey.studentId);
+        const subject = subjects.find(s => s.id === survey.subjectId);
+        const teacher = teachers.find(t => t.id === survey.teacherId);
+
+        const answersMap = new Map(survey.answers.map(a => [a.questionId, a.answer]));
+        
+        const rowData = [
+            `"${student?.name || ''} ${student?.lastName || ''}"`,
+            `"${subject?.name || 'N/A'}"`,
+            `"${teacher?.name || ''} ${teacher?.lastName || 'N/A'}"`,
+            `"${survey.completionDate ? new Date(survey.completionDate).toLocaleString('es-CL') : 'N/A'}"`,
+            ...surveyQuestions.map(q => `"${(answersMap.get(q.id) || '').toString().replace(/"/g, '""')}"`)
+        ];
+        csvContent += rowData.join(';') + '\r\n';
+    });
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "reporte_encuestas.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+
+const generatePdfReport = (person: Student | Teacher, personType: 'student' | 'teacher', data: { gradeReports: GradeReport[], anotaciones: Anotacion[], activities: any[], subjects: Subject[] }) => {
+    const doc = new jsPDF();
+    const { gradeReports, anotaciones, activities, subjects } = data;
+
+    // Common Header
+    doc.setFontSize(20);
+    doc.text("GRUA - Resumen de Expediente", 105, 20, { align: "center" });
+    if (person.photo) {
+        try {
+            // Check if image is SVG, if so skip adding it to avoid jspdf errors
+            if (!person.photo.startsWith('data:image/svg+xml')) {
+                doc.addImage(person.photo, 'JPEG', 15, 30, 30, 30);
+            }
+        } catch(e) { console.error("Could not add image to PDF", e); }
+    }
+    doc.setFontSize(12);
+    doc.text(`${person.name} ${person.lastName}`, 50, 35);
+    doc.text(`RUT: ${person.rut}`, 50, 42);
+    doc.text(`Email: ${person.email}`, 50, 49);
+
+    let finalY = 70;
+
+    if (personType === 'student') {
+        // Grades section
+        if (gradeReports.length > 0) {
+            doc.setFontSize(16);
+            doc.text("Resumen de Calificaciones", 15, finalY - 5);
+            doc.autoTable({
+                startY: finalY,
+                head: [['Asignatura', 'Nota Final', 'Estado', 'Fecha Informe']],
+                body: gradeReports.map((r: GradeReport) => {
+                    const subject = subjects.find((s: Subject) => s.id === r.subjectId);
+                    return [
+                        subject?.name || 'N/A',
+                        r.gradeSummary.finalGrade.toFixed(1),
+                        r.status,
+                        r.generationDate.toLocaleDateString('es-CL')
+                    ];
+                }),
+            });
+            finalY = doc.lastAutoTable.finalY + 15;
+        }
+
+        // Annotations section
+        if (anotaciones.length > 0) {
+            doc.setFontSize(16);
+            doc.text("Anotaciones", 15, finalY - 5);
+            doc.autoTable({
+                startY: finalY,
+                head: [['Fecha', 'Tipo', 'Descripción']],
+                body: anotaciones.map((a: Anotacion) => [
+                    a.timestamp.toLocaleDateString('es-CL'),
+                    a.type,
+                    doc.splitTextToSize(a.text, 120) // Wrap text
+                ]),
+                columnStyles: { 2: { cellWidth: 'auto' } },
+            });
+            finalY = doc.lastAutoTable.finalY + 15;
+        }
+
+        // Activities section
+        if (activities.length > 0) {
+            doc.setFontSize(16);
+            doc.text("Actividades Profesionales", 15, finalY - 5);
+            doc.autoTable({
+                startY: finalY,
+                head: [['Fecha', 'Tipo', 'Título']],
+                body: activities.map((a: ProfessionalActivity) => [
+                    new Date(a.date).toLocaleDateString('es-CL'),
+                    a.type,
+                    doc.splitTextToSize(a.title, 120)
+                ]),
+                 columnStyles: { 2: { cellWidth: 'auto' } },
+            });
+            finalY = doc.lastAutoTable.finalY + 15;
+        }
+
+    } else { // Teacher
+        if (activities.length > 0) {
+            doc.setFontSize(16);
+            doc.text("Actividades Profesionales", 15, finalY - 5);
+            doc.autoTable({
+                startY: finalY,
+                head: [['Fecha', 'Tipo', 'Título']],
+                body: activities.map((a: TeacherProfessionalActivity) => [
+                    new Date(a.date).toLocaleDateString('es-CL'),
+                    a.type,
+                    doc.splitTextToSize(a.title, 120)
+                ]),
+                columnStyles: { 2: { cellWidth: 'auto' } },
+            });
+            finalY = doc.lastAutoTable.finalY + 15;
+        }
+    }
+
+    // Footer
+    doc.setFontSize(8);
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.text(`Página ${i} de ${pageCount}`, 105, 290, { align: "center" });
+    }
+    doc.text(`Reporte generado el ${new Date().toLocaleString('es-CL')}`, 15, 290);
+    
+    doc.save(`resumen_${person.lastName}_${person.name}.pdf`);
+};
+
 const calculateAge = (birthDate: string): number => {
     const today = new Date();
     const birth = new Date(birthDate);
@@ -38,21 +247,63 @@ const fileToBase64 = (file: File): Promise<string> => {
     });
 };
 
+const calculateFinalGrade = (grade: Grade): string => {
+    let competencyAvg = grade.grade2;
+
+    // If grade2 (competency average) is not a valid number, try to calculate it from competencyScores
+    if (typeof competencyAvg !== 'number') {
+        const validScores = grade.competencyScores?.filter(
+            (s): s is number => typeof s === 'number'
+        );
+        if (validScores && validScores.length > 0) {
+            competencyAvg = validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
+        }
+    }
+
+    const components = [
+        { value: grade.grade1, weight: 0.60 }, // Examen Teórico
+        { value: competencyAvg, weight: 0.30 }, // Promedio Competencias
+        { value: grade.grade3, weight: 0.10 }, // Actividad Docente
+    ];
+
+    // Filter for components that actually have a numeric grade
+    const gradedComponents = components.filter(c => typeof c.value === 'number');
+
+    if (gradedComponents.length === 0) {
+        return 'N/A';
+    }
+    
+    // Calculate the sum of weights for the available grades
+    const totalWeight = gradedComponents.reduce((sum, c) => sum + c.weight, 0);
+    
+    // This should not happen if gradedComponents has items, but it's a safeguard
+    if (totalWeight === 0) {
+        return 'N/A'; 
+    }
+
+    // Calculate the weighted sum of the available grades
+    const totalWeightedSum = gradedComponents.reduce((sum, c) => sum + c.value! * c.weight, 0);
+    
+    // Normalize the grade by dividing by the sum of available weights
+    const finalGrade = totalWeightedSum / totalWeight;
+
+    return finalGrade.toFixed(1);
+};
+
 
 // --- Helper Components & Icons ---
 const Icon = ({ path, className = 'w-6 h-6' }: { path: string; className?: string }) => ( <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d={path} /></svg> );
-const Icons = { dashboard: <Icon path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />, students: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, teachers: <Icon path="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />, subjects: <Icon path="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />, grades: <Icon path="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />, studentFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, teacherFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, calendar: <Icon path="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />, news: <Icon path="M4 5v14h16V5H4zm2 12H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm12 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z" />, documents: <Icon path="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />, meetings: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, site_management: <Icon path="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49.42l.38-2.65c.61-.25 1.17-.59-1.69.98l2.49 1c.23.09.49 0 .61.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />, logout: <Icon path="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />, plus: <Icon path="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />, edit: <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />, delete: <Icon path="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />, download: <Icon path="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />, view: <Icon path="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" /> };
-// FIX: Changed component definitions to use React.FC for better type compatibility with React's props like 'key' and to resolve 'children' prop type inference issues.
+const Icons = { dashboard: <Icon path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />, students: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, teachers: <Icon path="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />, subjects: <Icon path="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />, grades: <Icon path="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />, studentFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, teacherFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, calendar: <Icon path="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />, news: <Icon path="M4 5v14h16V5H4zm2 12H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm12 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z" />, documents: <Icon path="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />, meetings: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, site_management: <Icon path="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49.42l.38-2.65c.61-.25 1.17-.59-1.69.98l2.49 1c.23.09.49 0 .61.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />, surveys: <Icon path="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2V9h2v3zm4-2h-2V7h2v3z" />, logout: <Icon path="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />, plus: <Icon path="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />, edit: <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />, delete: <Icon path="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />, download: <Icon path="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />, view: <Icon path="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />, pdf: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm-2.5.5h1v-1h-1v1zm7 4.5h-3V9h1.5v3H16v-3h1.5v6zm-7-4.5H13v-1H9.5v1z" className='w-5 h-5'/>, excel: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9.5 14.5h-2l-1-2.25L5.5 14.5h-2L6 11l-2.5-3.5h2l1 2.25L7.5 7.5h2L7 11l2.5 3.5zm7 0h-1.5v-1.5h-3V16H10V7.5h1.5v1.5h3V7.5H16v7z" className='w-5 h-5'/>, link: <Icon path="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" /> };
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => ( <div className={`bg-white rounded-lg shadow p-6 ${className}`}>{children}</div> );
 const Button: React.FC<{ children: React.ReactNode; onClick?: () => void; className?: string; type?: 'button' | 'submit' | 'reset'; disabled?: boolean; [key: string]: any; }> = ({ children, onClick, className = 'bg-primary hover:bg-primary-hover text-white', type = 'button', disabled = false, ...props }) => ( <button type={type} onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded-md font-semibold transition-colors duration-200 flex items-center justify-center space-x-2 disabled:bg-slate-300 disabled:cursor-not-allowed ${className}`} {...props}>{children}</button> );
-const Modal: React.FC<{ children: React.ReactNode; title: string; onClose: () => void; size?: 'lg' | '2xl' | '4xl' }> = ({ children, title, onClose, size = 'lg' }) => { const sizeClasses = { lg: 'max-w-lg', '2xl': 'max-w-2xl', '4xl': 'max-w-4xl' }; return ( <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-start pt-10 overflow-y-auto" onClick={onClose}><div className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} mx-4 mb-10`} onClick={e => e.stopPropagation()}><div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-lg z-10"><h3 className="text-xl font-bold text-dark-text">{title}</h3><button onClick={onClose} className="text-3xl font-light text-slate-400 hover:text-slate-700 leading-none">&times;</button></div><div className="p-6">{children}</div></div></div> ); };
-const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => ( <input {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-100" /> );
-const Select = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => ( <select {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" /> );
-const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => ( <textarea {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" /> );
+const Modal: React.FC<{ children: React.ReactNode; title: string; onClose: () => void; size?: 'lg' | '2xl' | '4xl' | '6xl' }> = ({ children, title, onClose, size = 'lg' }) => { const sizeClasses = { lg: 'max-w-lg', '2xl': 'max-w-2xl', '4xl': 'max-w-4xl', '6xl': 'max-w-6xl' }; return ( <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-start pt-10 overflow-y-auto" onClick={onClose}><div className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} mx-4 mb-10`} onClick={e => e.stopPropagation()}><div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-lg z-10"><h3 className="text-xl font-bold text-dark-text">{title}</h3><button onClick={onClose} className="text-3xl font-light text-slate-400 hover:text-slate-700 leading-none">&times;</button></div><div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div></div></div> ); };
+const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => ( <input {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500" /> );
+const Select = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => ( <select {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500" /> );
+const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => ( <textarea {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500" /> );
 const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => ( <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center"><label className="font-semibold">{label}</label><div className="md:col-span-2">{children}</div></div> );
 const competencyLabels = [ "Juicio Clínico y Razonamiento", "Conocimientos y Habilidades Técnicas", "Profesionalismo y Ética", "Comunicación y Habilidades Interpersonales", "Trabajo en Equipo y Colaboración", "Aprendizaje Continuo y Autoevaluación", "Gestión y Seguridad del Paciente", "Manejo de la Información" ];
 const competencyScale = { 1: "Nunca", 2: "Rara Vez", 3: "Pocas Veces", 4: "A Veces", 5: "Frecuentemente", 6: "Generalmente", 7: "Casi Siempre" };
-type View = 'DASHBOARD' | 'STUDENTS' | 'TEACHERS' | 'SUBJECTS' | 'GRADES' | 'STUDENT_FILES' | 'TEACHER_FILES' | 'CALENDAR' | 'NEWS' | 'DOCUMENTS' | 'MEETINGS' | 'SITE_MANAGEMENT';
+type View = 'DASHBOARD' | 'STUDENTS' | 'TEACHERS' | 'SUBJECTS' | 'GRADES' | 'STUDENT_FILES' | 'TEACHER_FILES' | 'CALENDAR' | 'NEWS' | 'DOCUMENTS' | 'MEETINGS' | 'SITE_MANAGEMENT' | 'SURVEYS';
 
 // --- Modals ---
 const ConfirmDeleteModal = ({ onConfirm, onCancel, title, message }: { onConfirm: () => void, onCancel: () => void, title: string, message: string }) => (
@@ -151,13 +402,16 @@ const EvaluationModal = ({ grade, student, subject, onSave, onClose }: { grade: 
     const [competencyScores, setCompetencyScores] = useState<(number | null)[]>(grade.competencyScores || Array(8).fill(null));
     const [feedback, setFeedback] = useState('');
     
-    const finalGrade = useMemo(() => {
-        const theoreticalGrade = grades.theoretical || 0;
-        const validCompetencies = competencyScores.filter(s => s !== null) as number[];
-        const competencyAvg = validCompetencies.length > 0 ? validCompetencies.reduce((a, b) => a + b, 0) / validCompetencies.length : 0;
-        const teacherActivityGrade = grades.teacherActivity || 0;
-        return (theoreticalGrade * 0.6) + (competencyAvg * 0.3) + (teacherActivityGrade * 0.1);
-    }, [grades, competencyScores]);
+    const finalGradeDisplay = useMemo(() => {
+        const tempGrade: Grade = {
+            ...grade,
+            grade1: grades.theoretical ?? undefined,
+            grade3: grades.teacherActivity ?? undefined,
+            competencyScores: competencyScores,
+        };
+        const result = calculateFinalGrade(tempGrade);
+        return isNaN(parseFloat(result)) ? '0.0' : result;
+    }, [grades, competencyScores, grade]);
 
     const handleGradeChange = (e: React.ChangeEvent<HTMLInputElement>) => { const { name, value } = e.target; setGrades(prev => ({ ...prev, [name]: value === '' ? null : parseFloat(value) })); };
     const handleCompetencyChange = (index: number, value: number) => { const newScores = [...competencyScores]; newScores[index] = value; setCompetencyScores(newScores); };
@@ -165,7 +419,7 @@ const EvaluationModal = ({ grade, student, subject, onSave, onClose }: { grade: 
         e.preventDefault();
         const validCompetencies = competencyScores.filter(s => s !== null) as number[];
         const competencyAvg = validCompetencies.length > 0 ? validCompetencies.reduce((a, b) => a + b, 0) / validCompetencies.length : undefined;
-        const gradeSummary = { grade1: grades.theoretical ?? undefined, grade2: competencyAvg, grade3: grades.teacherActivity ?? undefined, finalGrade };
+        const gradeSummary = { grade1: grades.theoretical ?? undefined, grade2: competencyAvg, grade3: grades.teacherActivity ?? undefined, finalGrade: parseFloat(finalGradeDisplay) };
         onSave(grade, gradeSummary, competencyScores, feedback);
     };
     
@@ -176,7 +430,7 @@ const EvaluationModal = ({ grade, student, subject, onSave, onClose }: { grade: 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div><label className="font-semibold block mb-1">Examen Teórico (60%)</label><Input type="number" name="theoretical" value={grades.theoretical ?? ''} onChange={handleGradeChange} step="0.1" min="1" max="7" /></div>
                         <div><label className="font-semibold block mb-1">Actividad Docente (10%)</label><Input type="number" name="teacherActivity" value={grades.teacherActivity ?? ''} onChange={handleGradeChange} step="0.1" min="1" max="7" /></div>
-                        <div className="bg-slate-100 p-4 rounded-md text-center"><p className="text-sm text-medium-text">Nota Final Ponderada</p><p className="font-bold text-2xl">{finalGrade.toFixed(2)}</p></div>
+                        <div className="bg-slate-100 p-4 rounded-md text-center"><p className="text-sm text-medium-text">Nota Final Ponderada</p><p className="font-bold text-2xl">{finalGradeDisplay}</p></div>
                     </div>
                 </Card>
                 <Card>
@@ -239,15 +493,15 @@ const ProfessionalActivityFormModal = ({ personId, personType, onSave, onClose }
     const renderSpecificFields = () => {
         switch(type) {
             case 'Congreso':
-                return <> <FormRow label="Ubicación"><Input name="location" value={specificData.location || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Tipo de Participación"> <Select name="participationType" value={specificData.participationType || (personType === 'student' ? 'Asistente' : 'Asistente')} onChange={handleSpecificChange}> {personType === 'student' ? <> <option>Asistente</option><option>Póster</option><option>Presentación Oral</option> </> : <> <option>Asistente</option><option>Expositor</option><option>Organizador</option> </>} </Select> </FormRow> </>;
+                return <> <FormRow label="Ubicación"><Input name="location" value={specificData.location || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Tipo de Participación"> <Select name="participationType" value={specificData.participationType || (personType === 'student' ? 'Asistente' : 'Asistente')} onChange={handleSpecificChange}> {personType === 'student' ? <> <option>Asistente</option><option>Póster</option><option>Presentación Oral</option> </> : <> <option>Asistente</option><option>Expositor</option><option>Organizador</option> </>} </Select> </FormRow> </>];
             case 'Publicación':
-                return <> <FormRow label="Revista/Journal"><Input name="journal" value={specificData.journal || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Link DOI (opcional)"><Input name="doiLink" value={specificData.doiLink || ''} onChange={handleSpecificChange} /></FormRow> </>;
+                return <> <FormRow label="Revista/Journal"><Input name="journal" value={specificData.journal || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Link DOI (opcional)"><Input name="doiLink" value={specificData.doiLink || ''} onChange={handleSpecificChange} /></FormRow> </>];
             case 'Presentación':
-                 return <> <FormRow label="Nombre del Evento"><Input name="eventName" value={specificData.eventName || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Ubicación"><Input name="location" value={specificData.location || ''} onChange={handleSpecificChange} required /></FormRow> </>
+                 return <> <FormRow label="Nombre del Evento"><Input name="eventName" value={specificData.eventName || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Ubicación"><Input name="location" value={specificData.location || ''} onChange={handleSpecificChange} required /></FormRow> </>]
             case 'Rotación': // Student only
-                 return <> <FormRow label="Institución"><Input name="institution" value={specificData.institution || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Supervisor"><Input name="supervisor" value={specificData.supervisor || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Fecha de Término"><Input type="date" name="endDate" value={specificData.endDate || ''} onChange={handleSpecificChange} required /></FormRow> </>;
+                 return <> <FormRow label="Institución"><Input name="institution" value={specificData.institution || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Supervisor"><Input name="supervisor" value={specificData.supervisor || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Fecha de Término"><Input type="date" name="endDate" value={specificData.endDate || ''} onChange={handleSpecificChange} required /></FormRow> </>];
             case 'Investigación': // Teacher only
-                return <> <FormRow label="Proyecto"><Input name="project" value={specificData.project || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Rol"><Input name="role" value={specificData.role || ''} onChange={handleSpecificChange} required /></FormRow> </>
+                return <> <FormRow label="Proyecto"><Input name="project" value={specificData.project || ''} onChange={handleSpecificChange} required /></FormRow> <FormRow label="Rol"><Input name="role" value={specificData.role || ''} onChange={handleSpecificChange} required /></FormRow> </>]
             default:
                 return <FormRow label="Descripción"><Textarea name="description" value={specificData.description || ''} onChange={handleSpecificChange} required rows={4} /></FormRow>;
         }
@@ -329,12 +583,12 @@ const MeetingRecordFormModal = ({ record, students, teachers, onSave, onClose }:
                 </div>
                 <FormRow label="Detalles"><Textarea name="details" value={formData.details} onChange={handleChange} rows={6} required /></FormRow>
                 <FormRow label="Docentes Asistentes">
-                    <select multiple className="w-full h-24 px-3 py-2 border border-slate-300 rounded-md" value={formData.attendees?.teachers.map(String)} onChange={(e) => handleAttendeeChange('teachers', e.target.selectedOptions)}>
+                    <select multiple className="w-full h-24 px-3 py-2 border border-slate-300 rounded-md bg-white text-dark-text" value={formData.attendees?.teachers.map(String)} onChange={(e) => handleAttendeeChange('teachers', e.target.selectedOptions)}>
                         {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}
                     </select>
                 </FormRow>
                 <FormRow label="Alumnos Asistentes">
-                    <select multiple className="w-full h-24 px-3 py-2 border border-slate-300 rounded-md" value={formData.attendees?.students.map(String)} onChange={(e) => handleAttendeeChange('students', e.target.selectedOptions)}>
+                    <select multiple className="w-full h-24 px-3 py-2 border border-slate-300 rounded-md bg-white text-dark-text" value={formData.attendees?.students.map(String)} onChange={(e) => handleAttendeeChange('students', e.target.selectedOptions)}>
                         {students.map(s => <option key={s.id} value={s.id}>{s.name} {s.lastName}</option>)}
                     </select>
                 </FormRow>
@@ -346,48 +600,320 @@ const MeetingRecordFormModal = ({ record, students, teachers, onSave, onClose }:
     );
 };
 
+const QuickLinkFormModal = ({ link, onSave, onClose }: { link?: QuickLink; onSave: (link: QuickLink) => void; onClose: () => void; }) => {
+    const [formData, setFormData] = useState(link || { id: 0, label: '', url: '' });
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
+
+    return (
+        <Modal title={link ? 'Editar Enlace Rápido' : 'Agregar Enlace Rápido'} onClose={onClose}>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <FormRow label="Etiqueta"><Input name="label" value={formData.label} onChange={handleChange} required /></FormRow>
+                <FormRow label="URL"><Input type="url" name="url" value={formData.url} onChange={handleChange} required placeholder="https://ejemplo.com" /></FormRow>
+                <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar Enlace</Button></div>
+            </form>
+        </Modal>
+    );
+};
+
+const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey: Survey, student: Student, subject: Subject, onSave: (survey: Survey, answers: SurveyAnswer[]) => void, onClose: () => void }) => {
+    const [answers, setAnswers] = useState<SurveyAnswer[]>([]);
+    const allQuestionsAnswered = useMemo(() => answers.length === surveyQuestions.length, [answers]);
+
+    const handleAnswerChange = (questionId: number, answer: string) => {
+        setAnswers(prev => {
+            const existing = prev.find(a => a.questionId === questionId);
+            if (existing) {
+                return prev.map(a => a.questionId === questionId ? { ...a, answer } : a);
+            }
+            return [...prev, { questionId, answer }];
+        });
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!allQuestionsAnswered) {
+            alert('Por favor, responda todas las preguntas antes de enviar.');
+            return;
+        }
+        onSave(survey, answers);
+    };
+
+    return (
+        <Modal title={`Encuesta: ${subject.name}`} onClose={onClose} size="6xl">
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <p>Por favor, complete la siguiente encuesta para la asignatura <strong>{subject.name}</strong>, completada por <strong>{student.name} {student.lastName}</strong>.</p>
+                <div className="space-y-8">
+                    {surveyQuestions.map((q, index) => (
+                        <Card key={q.id} className="bg-slate-50">
+                            <label className="font-bold text-dark-text block mb-4">{index + 1}. {q.text}</label>
+                            {q.type === 'multiple-choice' && (
+                                <div className="flex flex-wrap gap-4">
+                                    {q.options?.map(option => (
+                                        <label key={option} className="flex items-center space-x-2 cursor-pointer p-2 rounded-md hover:bg-slate-200">
+                                            <input
+                                                type="radio"
+                                                name={`question-${q.id}`}
+                                                value={option}
+                                                onChange={e => handleAnswerChange(q.id, e.target.value)}
+                                                required
+                                                className="h-4 w-4 text-primary focus:ring-primary border-slate-300"
+                                            />
+                                            <span>{option}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                            {q.type === 'open-text' && (
+                                <Textarea
+                                    rows={4}
+                                    onChange={e => handleAnswerChange(q.id, e.target.value)}
+                                    placeholder="Escriba su respuesta"
+                                    required
+                                />
+                            )}
+                        </Card>
+                    ))}
+                </div>
+                <div className="flex justify-end space-x-2 pt-4 border-t">
+                    <Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button>
+                    <Button type="submit" disabled={!allQuestionsAnswered} title={!allQuestionsAnswered ? 'Debe responder todas las preguntas' : ''}>
+                        Enviar Encuesta
+                    </Button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
+
 
 // --- Loading & Layout ---
 const LoadingScreen: React.FC = () => ( <div className="flex items-center justify-center h-screen bg-light-bg"><div className="text-center"><h1 className="text-3xl font-bold text-primary">GRUA</h1><p className="text-medium-text mt-2">Gestión de Radiología Universidad de Antofagasta</p><div className="mt-8 border-4 border-slate-200 border-t-primary rounded-full w-12 h-12 animate-spin mx-auto"></div></div></div> );
-const Sidebar: React.FC<{ currentView: View; setCurrentView: (view: View) => void }> = ({ currentView, setCurrentView }) => { const navItems = [ { view: 'DASHBOARD', label: 'Dashboard', icon: Icons.dashboard }, { view: 'STUDENTS', label: 'Alumnos', icon: Icons.students }, { view: 'TEACHERS', label: 'Docentes', icon: Icons.teachers }, { view: 'SUBJECTS', label: 'Asignaturas', icon: Icons.subjects }, { view: 'GRADES', label: 'Calificaciones', icon: Icons.grades }, { view: 'STUDENT_FILES', label: 'Expediente Alumnos', icon: Icons.studentFile }, { view: 'TEACHER_FILES', label: 'Expediente Docentes', icon: Icons.teacherFile }, { view: 'CALENDAR', label: 'Calendario', icon: Icons.calendar }, { view: 'NEWS', label: 'Noticias', icon: Icons.news }, { view: 'DOCUMENTS', label: 'Documentos Oficiales', icon: Icons.documents }, { view: 'MEETINGS', label: 'Registro de Reuniones', icon: Icons.meetings }, { view: 'SITE_MANAGEMENT', label: 'Gestión del Sitio', icon: Icons.site_management }, ] as const; return ( <aside className="w-64 bg-secondary text-white flex flex-col"><div className="h-20 flex items-center justify-center text-2xl font-bold border-b border-slate-700">GRUA</div><nav className="flex-1 px-4 py-6 space-y-2">{navItems.map(item => ( <a key={item.view} href="#" onClick={(e) => { e.preventDefault(); setCurrentView(item.view); }} className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200 ${ currentView === item.view ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }`}>{React.cloneElement(item.icon, { className: 'w-6 h-6' })}<span>{item.label}</span></a> ))}</nav><div className="px-4 py-6 border-t border-slate-700"><a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white">{Icons.logout}<span>Cerrar Sesión</span></a></div></aside> ); };
+const Sidebar: React.FC<{ currentView: View; setCurrentView: (view: View) => void }> = ({ currentView, setCurrentView }) => { const navItems = [ { view: 'DASHBOARD', label: 'Dashboard', icon: Icons.dashboard }, { view: 'STUDENTS', label: 'Alumnos', icon: Icons.students }, { view: 'TEACHERS', label: 'Docentes', icon: Icons.teachers }, { view: 'SUBJECTS', label: 'Asignaturas', icon: Icons.subjects }, { view: 'GRADES', label: 'Calificaciones', icon: Icons.grades }, { view: 'STUDENT_FILES', label: 'Expediente Alumnos', icon: Icons.studentFile }, { view: 'TEACHER_FILES', label: 'Expediente Docentes', icon: Icons.teacherFile }, { view: 'SURVEYS', label: 'Gestión de Encuestas', icon: Icons.surveys }, { view: 'CALENDAR', label: 'Calendario', icon: Icons.calendar }, { view: 'NEWS', label: 'Noticias', icon: Icons.news }, { view: 'DOCUMENTS', label: 'Documentos Oficiales', icon: Icons.documents }, { view: 'MEETINGS', label: 'Registro de Reuniones', icon: Icons.meetings }, { view: 'SITE_MANAGEMENT', label: 'Gestión del Sitio', icon: Icons.site_management }, ] as const; return ( <aside className="w-64 bg-secondary text-white flex flex-col"><div className="h-20 flex items-center justify-center text-2xl font-bold border-b border-slate-700">GRUA</div><nav className="flex-1 px-4 py-6 space-y-2">{navItems.map(item => ( <a key={item.view} href="#" onClick={(e) => { e.preventDefault(); setCurrentView(item.view); }} className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200 ${ currentView === item.view ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }`}>{React.cloneElement(item.icon, { className: 'w-6 h-6' })}<span>{item.label}</span></a> ))}</nav><div className="px-4 py-6 border-t border-slate-700"><a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white">{Icons.logout}<span>Cerrar Sesión</span></a></div></aside> ); };
 const Header: React.FC<{ user: Teacher }> = ({ user }) => ( <header className="h-20 bg-white shadow-sm flex items-center justify-between px-8"><h1 className="text-2xl font-bold text-dark-text">Bienvenido, Dr. {user.lastName}</h1><div className="flex items-center space-x-4"><div className="text-right"><p className="font-semibold">{user.name} {user.lastName}</p><p className="text-sm text-medium-text">{user.academicRank}</p></div><img src={user.photo} alt={`${user.name} ${user.lastName}`} className="w-12 h-12 rounded-full object-cover border-2 border-primary" /></div></header> );
-const RenderView: React.FC<{ view: View, data: any }> = ({ view, data }) => { switch (view) { case 'DASHBOARD': return <Dashboard {...data} />; case 'STUDENTS': return <StudentListPage {...data} />; case 'TEACHERS': return <TeacherListPage {...data} />; case 'SUBJECTS': return <SubjectListPage {...data} />; case 'GRADES': return <GradeManagerPage {...data} />; case 'STUDENT_FILES': return <StudentFilesPage {...data} />; case 'TEACHER_FILES': return <TeacherFilesPage {...data} />; case 'CALENDAR': return <CalendarPage {...data} />; case 'NEWS': return <NewsPage {...data} />; case 'DOCUMENTS': return <OfficialDocumentsPage {...data} />; case 'MEETINGS': return <MeetingRecordsPage {...data} />; case 'SITE_MANAGEMENT': return <SiteManagementPage {...data} />; default: return <Dashboard {...data} />; } };
+const RenderView: React.FC<{ view: View, data: any }> = ({ view, data }) => { switch (view) { case 'DASHBOARD': return <Dashboard {...data} />; case 'STUDENTS': return <StudentListPage {...data} />; case 'TEACHERS': return <TeacherListPage {...data} />; case 'SUBJECTS': return <SubjectListPage {...data} />; case 'GRADES': return <GradeManagerPage {...data} />; case 'STUDENT_FILES': return <StudentFilesPage {...data} />; case 'TEACHER_FILES': return <TeacherFilesPage {...data} />; case 'CALENDAR': return <CalendarPage {...data} />; case 'NEWS': return <NewsPage {...data} />; case 'DOCUMENTS': return <OfficialDocumentsPage {...data} />; case 'MEETINGS': return <MeetingRecordsPage {...data} />; case 'SITE_MANAGEMENT': return <SiteManagementPage {...data} />; case 'SURVEYS': return <SurveyManagementPage {...data} />; default: return <Dashboard {...data} />; } };
 const PageTitle = ({ title, children }: { title: string, children?: React.ReactNode }) => ( <div className="flex justify-between items-center mb-6"><h2 className="text-3xl font-bold text-dark-text">{title}</h2><div>{children}</div></div> );
-const calculateAverage = (grade: Grade) => { const scores = [grade.grade1, grade.grade2, grade.grade3].filter(g => typeof g === 'number') as number[]; if (scores.length === 0) return 'N/A'; const avg = scores.reduce((acc, curr) => acc + curr, 0) / scores.length; return avg.toFixed(1); };
 
 // --- Page Components ---
-const Dashboard: React.FC<{ students: Student[]; grades: Grade[]; subjects: Subject[]; news: NewsArticle[]; activityLog: ActivityLog[]; calendarEvents: CalendarEvent[]; }> = ({ students, grades, subjects, news, activityLog, calendarEvents }) => { const recentGrades = useMemo(() => [...grades].sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()).slice(0, 5), [grades]); const getStudentName = (id: number) => students.find(s => s.id === id)?.name || 'N/A'; const getSubjectName = (id: number) => subjects.find(s => s.id === id)?.name || 'N/A'; const upcomingEvents = useMemo(() => [...calendarEvents].filter(event => event.start >= new Date()).sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 3), [calendarEvents]); return ( <div className="grid grid-cols-1 lg:grid-cols-3 gap-8"><div className="lg:col-span-2 space-y-8"><WelcomeBanner studentCount={students.length} /><RecentGradesCard grades={recentGrades} getStudentName={getStudentName} getSubjectName={getSubjectName} /><NewsAndUpdates news={news} /></div><div className="space-y-8"><UpcomingEventsCard events={upcomingEvents} /><ActivityLogCard log={activityLog} /></div></div> ); };
+const Dashboard: React.FC<{ students: Student[]; grades: Grade[]; subjects: Subject[]; news: NewsArticle[]; activityLog: ActivityLog[]; calendarEvents: CalendarEvent[]; quickLinks: QuickLink[]; bookmarks: Bookmark[], setCurrentView: (view: View) => void, openModal: (modal: any) => void }> = ({ students, grades, subjects, news, activityLog, calendarEvents, quickLinks, bookmarks, setCurrentView, openModal }) => { const recentGrades = useMemo(() => [...grades].sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()).slice(0, 5), [grades]); const getStudentName = (id: number) => students.find(s => s.id === id)?.name || 'N/A'; const getSubjectName = (id: number) => subjects.find(s => s.id === id)?.name || 'N/A'; const upcomingEvents = useMemo(() => [...calendarEvents].filter(event => event.start >= new Date()).sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 3), [calendarEvents]); return ( <div className="grid grid-cols-1 lg:grid-cols-3 gap-8"><div className="lg:col-span-2 space-y-8"><WelcomeBanner studentCount={students.length} /><BookmarksCard bookmarks={bookmarks} setCurrentView={setCurrentView} /><RecentGradesCard grades={recentGrades} getStudentName={getStudentName} getSubjectName={getSubjectName} /></div><div className="space-y-8"><UpcomingEventsCard events={upcomingEvents} /><QuickLinksCard links={quickLinks} openModal={openModal} /><ActivityLogCard log={activityLog} /></div></div> ); };
 const WelcomeBanner: React.FC<{ studentCount: number }> = ({ studentCount }) => (<div className="bg-gradient-to-r from-primary to-indigo-500 rounded-lg p-8 text-white shadow-lg"><h2 className="text-3xl font-bold">¡Hola de nuevo!</h2><p className="mt-2 text-indigo-200">Actualmente tienes {studentCount} alumnos bajo tu supervisión. Revisa las últimas actualizaciones y eventos.</p></div>);
-const RecentGradesCard: React.FC<{ grades: Grade[], getStudentName: (id: number) => string, getSubjectName: (id: number) => string }> = ({ grades, getStudentName, getSubjectName }) => (<Card><h3 className="text-xl font-bold mb-4">Calificaciones Recientes</h3><div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b"><th className="py-2 px-4 font-semibold">Alumno</th><th className="py-2 px-4 font-semibold">Asignatura</th><th className="py-2 px-4 font-semibold">Promedio</th><th className="py-2 px-4 font-semibold">Estado</th></tr></thead><tbody>{grades.map(grade => (<tr key={grade.id} className="border-b last:border-0 hover:bg-slate-50"><td className="py-3 px-4">{getStudentName(grade.studentId)}</td><td className="py-3 px-4">{getSubjectName(grade.subjectId)}</td><td className="py-3 px-4 font-medium">{calculateAverage(grade)}</td><td className="py-3 px-4"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${grade.isFinalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{grade.isFinalized ? 'Finalizada' : 'En Progreso'}</span></td></tr>))}</tbody></table></div></Card>);
+const RecentGradesCard: React.FC<{ grades: Grade[], getStudentName: (id: number) => string, getSubjectName: (id: number) => string }> = ({ grades, getStudentName, getSubjectName }) => (<Card><h3 className="text-xl font-bold mb-4">Calificaciones Recientes</h3><div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b"><th className="py-2 px-4 font-semibold text-dark-text">Alumno</th><th className="py-2 px-4 font-semibold text-dark-text">Asignatura</th><th className="py-2 px-4 font-semibold text-dark-text">Promedio</th><th className="py-2 px-4 font-semibold text-dark-text">Estado</th></tr></thead><tbody>{grades.map(grade => (<tr key={grade.id} className="border-b last:border-0 hover:bg-slate-50"><td className="py-3 px-4 text-dark-text">{getStudentName(grade.studentId)}</td><td className="py-3 px-4 text-dark-text">{getSubjectName(grade.subjectId)}</td><td className="py-3 px-4 font-medium text-dark-text">{calculateFinalGrade(grade)}</td><td className="py-3 px-4"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${grade.isFinalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{grade.isFinalized ? 'Finalizada' : 'En Progreso'}</span></td></tr>))}</tbody></table></div></Card>);
 const NewsAndUpdates: React.FC<{ news: NewsArticle[] }> = ({ news }) => (<Card><h3 className="text-xl font-bold mb-4">Noticias y Anuncios</h3><div className="space-y-6">{news.slice(0, 2).map(article => (<div key={article.id} className="flex items-start space-x-4"><img src={article.imageUrl} alt={article.title} className="w-32 h-20 object-cover rounded-lg" /><div><h4 className="font-bold">{article.title}</h4><p className="text-sm text-medium-text mt-1">{article.content.substring(0, 100)}...</p><p className="text-xs text-light-text mt-2">{article.author} - {article.date.toLocaleDateString()}</p></div></div>))}</div></Card>);
 const getEventTypeStyles = (type: CalendarEvent['type']) => { switch (type) { case 'Examen': return 'bg-red-100 text-red-800 border-red-300'; case 'Clase': return 'bg-blue-100 text-blue-800 border-blue-300'; case 'Evento': return 'bg-purple-100 text-purple-800 border-purple-300'; case 'Feriado': return 'bg-green-100 text-green-800 border-green-300'; default: return 'bg-slate-100 text-slate-800 border-slate-300'; }};
 const UpcomingEventsCard: React.FC<{ events: CalendarEvent[] }> = ({ events }) => (<Card><h3 className="text-xl font-bold mb-4">Próximos Eventos</h3><ul className="space-y-4">{events.map(event => (<li key={event.id} className="flex items-center space-x-3"><div className="flex-shrink-0 w-12 text-center bg-primary-light rounded-lg p-2"><p className="text-primary font-bold text-lg leading-none">{event.start.getDate()}</p><p className="text-xs text-primary-hover">{event.start.toLocaleString('es-CL', { month: 'short' })}</p></div><div><p className="font-semibold">{event.title}</p><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getEventTypeStyles(event.type).split(' ')[0]} ${getEventTypeStyles(event.type).split(' ')[1]}`}>{event.type}</span></div></li>))}</ul></Card>);
 const ActivityLogCard: React.FC<{ log: ActivityLog[] }> = ({ log }) => (<Card><h3 className="text-xl font-bold mb-4">Actividad del Sistema</h3><ul className="space-y-4">{log.map(item => (<li key={item.id}><p className="text-sm">{item.description}</p><p className="text-xs text-light-text">{item.timestamp.toLocaleString('es-CL')}</p></li>))}</ul></Card>);
-const StudentListPage: React.FC<{ students: Student[]; openModal: (modal: any) => void }> = ({ students, openModal }) => (<div><PageTitle title="Gestión de Alumnos"><Button onClick={() => openModal({ type: 'ADD_STUDENT' })}>{Icons.plus}<span>Agregar Alumno</span></Button></PageTitle> <Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold"></th><th className="p-4 font-semibold">Nombre</th><th className="p-4 font-semibold">Año Residencia</th><th className="p-4 font-semibold">Edad</th><th className="p-4 font-semibold">Email</th><th className="p-4 font-semibold">Teléfono</th><th className="p-4 font-semibold">Acciones</th></tr></thead><tbody>{students.map(student => (<tr key={student.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4"><img src={student.photo} alt="" className="w-10 h-10 rounded-full object-cover"/></td><td className="p-4 font-medium">{student.name} {student.lastName}</td><td className="p-4">{calculateResidencyYear(student.admissionDate)}</td><td className="p-4">{calculateAge(student.birthDate)}</td><td className="p-4">{student.email}</td><td className="p-4">{student.phone}</td><td className="p-4"><div className="flex space-x-2"><Button onClick={() => openModal({ type: 'EDIT_STUDENT', data: student })} className="p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800" title="Editar">{Icons.edit}</Button><Button onClick={() => openModal({ type: 'DELETE_STUDENT', data: student })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button></div></td></tr>))}</tbody></table></Card></div>);
-const TeacherListPage: React.FC<{ teachers: Teacher[]; openModal: (modal: any) => void }> = ({ teachers, openModal }) => (<div><PageTitle title="Gestión de Docentes"><Button onClick={() => openModal({ type: 'ADD_TEACHER' })}>{Icons.plus}<span>Agregar Docente</span></Button></PageTitle> <Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold"></th><th className="p-4 font-semibold">Nombre</th><th className="p-4 font-semibold">Calidad</th><th className="p-4 font-semibold">Contrato</th><th className="p-4 font-semibold">Años Servicio</th><th className="p-4 font-semibold">Email</th><th className="p-4 font-semibold">Acciones</th></tr></thead><tbody>{teachers.map(teacher => (<tr key={teacher.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4"><img src={teacher.photo} alt="" className="w-10 h-10 rounded-full object-cover"/></td><td className="p-4 font-medium">{teacher.name} {teacher.lastName}</td><td className="p-4">{teacher.academicRank}</td><td className="p-4">{teacher.contractType}</td><td className="p-4">{calculateYearsWorked(teacher.admissionDate)}</td><td className="p-4">{teacher.email}</td><td className="p-4"><div className="flex space-x-2"><Button onClick={() => openModal({ type: 'EDIT_TEACHER', data: teacher })} className="p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800" title="Editar">{Icons.edit}</Button><Button onClick={() => openModal({ type: 'DELETE_TEACHER', data: teacher })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button></div></td></tr>))}</tbody></table></Card></div>);
+const QuickLinksCard: React.FC<{ links: QuickLink[], openModal: (modal: any) => void }> = ({ links, openModal }) => (<Card><h3 className="text-xl font-bold mb-4">Enlaces Rápidos</h3><ul className="space-y-3">{links.map((link) => (<li key={link.id} className="group flex items-center justify-between hover:bg-slate-50 -mx-2 px-2 py-1 rounded-md"><a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-3 text-primary hover:underline hover:text-primary-hover transition-colors flex-1">{React.cloneElement(Icons.link, { className: 'w-5 h-5 flex-shrink-0' })}<span className="truncate">{link.label}</span></a><div className="hidden group-hover:flex space-x-1 pl-2"><Button onClick={() => openModal({ type: 'EDIT_QUICK_LINK', data: link })} className="p-2 text-slate-500 bg-transparent hover:bg-slate-200" title="Editar">{React.cloneElement(Icons.edit, { className: 'w-4 h-4' })}</Button><Button onClick={() => openModal({ type: 'DELETE_QUICK_LINK', data: link })} className="p-2 text-red-500 bg-transparent hover:bg-red-100" title="Eliminar">{React.cloneElement(Icons.delete, { className: 'w-4 h-4' })}</Button></div></li>))}</ul><div className="mt-4 border-t pt-3"><Button onClick={() => openModal({ type: 'ADD_QUICK_LINK' })} className="w-full bg-slate-200 text-slate-800 hover:bg-slate-300">{Icons.plus}<span>Agregar Enlace</span></Button></div></Card>);
+const BookmarksCard: React.FC<{ bookmarks: Bookmark[], setCurrentView: (view: View) => void }> = ({ bookmarks, setCurrentView }) => (<Card><h3 className="text-xl font-bold mb-4">Marcadores</h3><div className="grid grid-cols-2 sm:grid-cols-3 gap-4">{bookmarks.map(bookmark => (<button key={bookmark.id} onClick={() => setCurrentView(bookmark.view)} className="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-primary-light rounded-lg transition-colors duration-200 aspect-square text-primary hover:text-primary-hover"><div className="p-3 bg-white rounded-full shadow">{React.cloneElement(Icons[bookmark.iconName as keyof typeof Icons], { className: 'w-7 h-7' })}</div><span className="mt-2 text-sm font-semibold text-center text-dark-text">{bookmark.label}</span></button>))}</div></Card>);
+const StudentListPage: React.FC<{ students: Student[]; openModal: (modal: any) => void }> = ({ students, openModal }) => (<div><PageTitle title="Gestión de Alumnos"><Button onClick={() => openModal({ type: 'ADD_STUDENT' })}>{Icons.plus}<span>Agregar Alumno</span></Button></PageTitle> <Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold text-dark-text"></th><th className="p-4 font-semibold text-dark-text">Nombre</th><th className="p-4 font-semibold text-dark-text">Año Residencia</th><th className="p-4 font-semibold text-dark-text">Edad</th><th className="p-4 font-semibold text-dark-text">Email</th><th className="p-4 font-semibold text-dark-text">Teléfono</th><th className="p-4 font-semibold text-dark-text">Acciones</th></tr></thead><tbody>{students.map(student => (<tr key={student.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4"><img src={student.photo} alt="" className="w-10 h-10 rounded-full object-cover"/></td><td className="p-4 font-medium text-dark-text">{student.name} {student.lastName}</td><td className="p-4 text-dark-text">{calculateResidencyYear(student.admissionDate)}</td><td className="p-4 text-dark-text">{calculateAge(student.birthDate)}</td><td className="p-4 text-dark-text">{student.email}</td><td className="p-4 text-dark-text">{student.phone}</td><td className="p-4"><div className="flex space-x-2"><Button onClick={() => openModal({ type: 'EDIT_STUDENT', data: student })} className="p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800" title="Editar">{Icons.edit}</Button><Button onClick={() => openModal({ type: 'DELETE_STUDENT', data: student })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button></div></td></tr>))}</tbody></table></Card></div>);
+const TeacherListPage: React.FC<{ teachers: Teacher[]; openModal: (modal: any) => void }> = ({ teachers, openModal }) => (<div><PageTitle title="Gestión de Docentes"><Button onClick={() => openModal({ type: 'ADD_TEACHER' })}>{Icons.plus}<span>Agregar Docente</span></Button></PageTitle> <Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold text-dark-text"></th><th className="p-4 font-semibold text-dark-text">Nombre</th><th className="p-4 font-semibold text-dark-text">Calidad</th><th className="p-4 font-semibold text-dark-text">Contrato</th><th className="p-4 font-semibold text-dark-text">Años Servicio</th><th className="p-4 font-semibold text-dark-text">Email</th><th className="p-4 font-semibold text-dark-text">Acciones</th></tr></thead><tbody>{teachers.map(teacher => (<tr key={teacher.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4"><img src={teacher.photo} alt="" className="w-10 h-10 rounded-full object-cover"/></td><td className="p-4 font-medium text-dark-text">{teacher.name} {teacher.lastName}</td><td className="p-4 text-dark-text">{teacher.academicRank}</td><td className="p-4 text-dark-text">{teacher.contractType}</td><td className="p-4 text-dark-text">{calculateYearsWorked(teacher.admissionDate)}</td><td className="p-4 text-dark-text">{teacher.email}</td><td className="p-4"><div className="flex space-x-2"><Button onClick={() => openModal({ type: 'EDIT_TEACHER', data: teacher })} className="p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800" title="Editar">{Icons.edit}</Button><Button onClick={() => openModal({ type: 'DELETE_TEACHER', data: teacher })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button></div></td></tr>))}</tbody></table></Card></div>);
 const SubjectListPage: React.FC<{ subjects: Subject[], teachers: Teacher[], openModal: (modal: any) => void }> = ({ subjects, teachers, openModal }) => { const getTeacherName = (id?: number) => { if (!id) return 'No asignado'; const teacher = teachers.find(t => t.id === id); return teacher ? `${teacher.name} ${teacher.lastName}` : 'Desconocido'; }; return (<div><PageTitle title="Gestión de Asignaturas"><Button onClick={() => openModal({ type: 'ADD_SUBJECT' })}>{Icons.plus}<span>Agregar Asignatura</span></Button></PageTitle><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{subjects.map(subject => (<Card key={subject.id} className="flex flex-col"><div className="flex-1"><h3 className="font-bold text-lg">{subject.name}</h3><p className="text-sm text-medium-text">{subject.code} - Semestre {subject.semester}</p><p className="mt-2 text-sm">{subject.description}</p><div className="mt-4 pt-4 border-t"><p className="text-sm"><strong>Docente:</strong> {getTeacherName(subject.teacherId)}</p><p className="text-sm"><strong>Créditos:</strong> {subject.credits}</p></div></div><div className="flex justify-end space-x-2 mt-4"><Button onClick={() => openModal({ type: 'EDIT_SUBJECT', data: subject })} className="p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800" title="Editar">{Icons.edit}</Button><Button onClick={() => openModal({ type: 'DELETE_SUBJECT', data: subject })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button></div></Card>))}</div></div>);};
-const GradeManagerPage: React.FC<{ grades: Grade[], students: Student[], subjects: Subject[], openModal: (modal: any) => void }> = ({ grades, students, subjects, openModal }) => { const findStudent = (id: number) => students.find(s => s.id === id)!; const findSubject = (id: number) => subjects.find(s => s.id === id)!; return (<div><PageTitle title="Gestión de Calificaciones"><Button onClick={() => openModal({ type: 'ADD_GRADE' })}>{Icons.plus}<span>Agregar Calificación</span></Button></PageTitle><Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold">Alumno</th><th className="p-4 font-semibold">Asignatura</th><th className="p-4 font-semibold text-center">Promedio</th><th className="p-4 font-semibold">Estado</th><th className="p-4 font-semibold">Acciones</th></tr></thead><tbody>{grades.map(grade => (<tr key={grade.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4 font-medium">{findStudent(grade.studentId)?.name} {findStudent(grade.studentId)?.lastName}</td><td className="p-4">{findSubject(grade.subjectId)?.name}</td><td className="p-4 text-center font-bold">{calculateAverage(grade)}</td><td className="p-4"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${grade.isFinalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{grade.isFinalized ? 'Finalizada' : 'En Progreso'}</span></td><td className="p-4 flex space-x-2"><Button onClick={() => openModal({ type: 'EVALUATE_GRADE', data: { grade, student: findStudent(grade.studentId), subject: findSubject(grade.subjectId) } })} className="bg-slate-200 text-slate-800 hover:bg-slate-300"><span>Evaluar</span></Button><Button onClick={() => openModal({ type: 'DELETE_GRADE', data: grade })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button></td></tr>))}</tbody></table></Card></div>);};
+const GradeManagerPage: React.FC<{ grades: Grade[], students: Student[], subjects: Subject[], teachers: Teacher[], openModal: (modal: any) => void }> = ({ grades, students, subjects, teachers, openModal }) => {
+    const [filters, setFilters] = useState({ studentId: '', subjectId: '', teacherId: '' });
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const filteredGrades = useMemo(() => {
+        return grades.filter(grade => {
+            const teacherSubjectIds = filters.teacherId ? subjects.filter(s => s.teacherId === parseInt(filters.teacherId)).map(s => s.id) : [];
+            
+            const studentMatch = !filters.studentId || grade.studentId === parseInt(filters.studentId);
+            const subjectMatch = !filters.subjectId || grade.subjectId === parseInt(filters.subjectId);
+            const teacherMatch = !filters.teacherId || teacherSubjectIds.includes(grade.subjectId);
+
+            return studentMatch && subjectMatch && teacherMatch;
+        });
+    }, [grades, subjects, filters]);
+
+    const findStudent = (id: number) => students.find(s => s.id === id);
+    const findSubject = (id: number) => subjects.find(s => s.id === id);
+
+    return (
+        <div>
+            <PageTitle title="Gestión de Calificaciones">
+                <Button onClick={() => openModal({ type: 'ADD_GRADE' })}>{Icons.plus}<span>Agregar Calificación</span></Button>
+            </PageTitle>
+            
+            <Card className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label className="font-semibold text-sm">Filtrar por Alumno</label>
+                        <Select name="studentId" value={filters.studentId} onChange={handleFilterChange}>
+                            <option value="">Todos los Alumnos</option>
+                            {students.map(s => <option key={s.id} value={s.id}>{s.name} {s.lastName}</option>)}
+                        </Select>
+                    </div>
+                     <div>
+                        <label className="font-semibold text-sm">Filtrar por Asignatura</label>
+                        <Select name="subjectId" value={filters.subjectId} onChange={handleFilterChange}>
+                            <option value="">Todas las Asignaturas</option>
+                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </Select>
+                    </div>
+                     <div>
+                        <label className="font-semibold text-sm">Filtrar por Docente</label>
+                        <Select name="teacherId" value={filters.teacherId} onChange={handleFilterChange}>
+                            <option value="">Todos los Docentes</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}
+                        </Select>
+                    </div>
+                </div>
+                 <div className="border-t mt-4 pt-4 flex justify-end space-x-2">
+                    <Button onClick={() => exportGradesToPdf(filteredGrades, students, subjects, teachers)} className="bg-red-600 hover:bg-red-700 text-white" disabled={filteredGrades.length === 0}>
+                        {Icons.pdf}<span>Exportar a PDF</span>
+                    </Button>
+                     <Button onClick={() => exportGradesToCsv(filteredGrades, students, subjects, teachers)} className="bg-green-600 hover:bg-green-700 text-white" disabled={filteredGrades.length === 0}>
+                        {Icons.excel}<span>Exportar a Excel</span>
+                    </Button>
+                </div>
+            </Card>
+
+            <Card>
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="border-b">
+                            <th className="p-4 font-semibold text-dark-text">Alumno</th>
+                            <th className="p-4 font-semibold text-dark-text">Asignatura</th>
+                            <th className="p-4 font-semibold text-center text-dark-text">Promedio</th>
+                            <th className="p-4 font-semibold text-dark-text">Estado</th>
+                            <th className="p-4 font-semibold text-dark-text">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredGrades.length > 0 ? filteredGrades.map(grade => {
+                            const student = findStudent(grade.studentId);
+                            const subject = findSubject(grade.subjectId);
+                            return (
+                                <tr key={grade.id} className="border-b last:border-0 hover:bg-slate-50">
+                                    <td className="p-4 font-medium text-dark-text">{student?.name} {student?.lastName}</td>
+                                    <td className="p-4 text-dark-text">{subject?.name}</td>
+                                    <td className="p-4 text-center font-bold text-dark-text">{calculateFinalGrade(grade)}</td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${grade.isFinalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                            {grade.isFinalized ? 'Finalizada' : 'En Progreso'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 flex space-x-2">
+                                        <Button
+                                            onClick={() => openModal({ type: 'EVALUATE_GRADE', data: { grade, student, subject } })}
+                                            className="bg-slate-200 text-slate-800 hover:bg-slate-300"
+                                            disabled={!student || !subject}
+                                        >
+                                            <span>Evaluar</span>
+                                        </Button>
+                                        <Button onClick={() => openModal({ type: 'DELETE_GRADE', data: grade })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button>
+                                    </td>
+                                </tr>
+                            );
+                        }) : (
+                            <tr><td colSpan={5} className="text-center p-8 text-medium-text">No se encontraron calificaciones con los filtros seleccionados.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </Card>
+        </div>
+    );
+};
 const CalendarPage: React.FC<{ calendarEvents: CalendarEvent[], openModal: (modal: any) => void }> = ({ calendarEvents, openModal }) => { const [currentDate, setCurrentDate] = useState(new Date()); const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1); const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0); const startDay = startOfMonth.getDay(); const daysInMonth = endOfMonth.getDate(); const days = Array.from({ length: startDay === 0 ? 6 : startDay - 1 }, () => null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1)); const eventsByDate = useMemo(() => { const map = new Map<number, CalendarEvent[]>(); calendarEvents.forEach(event => { if (event.start.getMonth() === currentDate.getMonth() && event.start.getFullYear() === currentDate.getFullYear()) { const day = event.start.getDate(); if (!map.has(day)) map.set(day, []); map.get(day)?.push(event); } }); return map; }, [calendarEvents, currentDate]); const changeMonth = (offset: number) => { setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1)); }; return (<div><PageTitle title="Calendario Académico"><div className="flex items-center space-x-4"><div className="flex items-center space-x-2"><Button onClick={() => changeMonth(-1)} className="bg-slate-200 text-slate-800 hover:bg-slate-300">‹</Button><h3 className="text-xl font-semibold w-48 text-center">{currentDate.toLocaleString('es-CL', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</h3><Button onClick={() => changeMonth(1)} className="bg-slate-200 text-slate-800 hover:bg-slate-300">›</Button></div><Button onClick={() => openModal({ type: 'ADD_EVENT' })}>{Icons.plus}<span>Agregar Evento</span></Button></div></PageTitle><Card><div className="grid grid-cols-7 text-center font-bold text-medium-text">{['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => <div key={day} className="py-2">{day}</div>)}</div><div className="grid grid-cols-7 border-t border-l">{days.map((day, index) => (<div key={index} className="h-36 border-r border-b p-2 flex flex-col">{day && <span className="font-semibold">{day}</span>}<div className="flex-1 overflow-y-auto text-xs space-y-1 mt-1">{day && eventsByDate.get(day)?.map(event => (<div key={event.id} className={`p-1 rounded border-l-4 ${getEventTypeStyles(event.type)}`}>{event.title}</div>))}</div></div>))}</div></Card></div>) };
 const NewsPage: React.FC<{ news: NewsArticle[], openModal: (modal: any) => void }> = ({ news, openModal }) => ( <div><PageTitle title="Noticias y Anuncios"><Button onClick={() => openModal({ type: 'ADD_NEWS' })}>{Icons.plus}<span>Agregar Noticia</span></Button></PageTitle><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{news.map(article => ( <Card key={article.id}><img src={article.imageUrl} alt={article.title} className="w-full h-48 object-cover rounded-t-lg mb-4" /><h3 className="text-xl font-bold">{article.title}</h3><p className="text-xs text-medium-text mt-1 mb-2">{article.author} - {article.date.toLocaleDateString('es-CL')}</p><p className="text-dark-text">{article.content}</p>{article.link && <a href={article.link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline mt-2 inline-block">{article.linkText || 'Leer más'}</a>}<div className="flex justify-end space-x-2 mt-4"><Button onClick={() => openModal({ type: 'EDIT_NEWS', data: article })} className="p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800" title="Editar">{Icons.edit}</Button><Button onClick={() => openModal({ type: 'DELETE_NEWS', data: article })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button></div></Card> ))}</div></div> );
-const OfficialDocumentsPage: React.FC<{ officialDocuments: OfficialDocument[] }> = ({ officialDocuments }) => ( <div><PageTitle title="Documentos Oficiales" /><Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold">Título</th><th className="p-4 font-semibold">Descripción</th><th className="p-4 font-semibold">Fecha de Subida</th><th className="p-4 font-semibold">Autor</th><th className="p-4 font-semibold">Acciones</th></tr></thead><tbody>{officialDocuments.map(doc => (<tr key={doc.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4 font-medium">{doc.title}</td><td className="p-4">{doc.description}</td><td className="p-4">{doc.uploadDate.toLocaleDateString('es-CL')}</td><td className="p-4">{doc.author}</td><td className="p-4"><a href={doc.file.url} target="_blank" rel="noreferrer" className="flex items-center space-x-2 px-4 py-2 rounded-md bg-slate-200 text-slate-800 hover:bg-slate-300 font-semibold transition-colors duration-200">{Icons.view}<span>Ver</span></a></td></tr>))}</tbody></table></Card></div> );
+const OfficialDocumentsPage: React.FC<{ officialDocuments: OfficialDocument[] }> = ({ officialDocuments }) => ( <div><PageTitle title="Documentos Oficiales" /><Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold text-dark-text">Título</th><th className="p-4 font-semibold text-dark-text">Descripción</th><th className="p-4 font-semibold text-dark-text">Fecha de Subida</th><th className="p-4 font-semibold text-dark-text">Autor</th><th className="p-4 font-semibold text-dark-text">Acciones</th></tr></thead><tbody>{officialDocuments.map(doc => (<tr key={doc.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4 font-medium text-dark-text">{doc.title}</td><td className="p-4 text-dark-text">{doc.description}</td><td className="p-4 text-dark-text">{doc.uploadDate.toLocaleDateString('es-CL')}</td><td className="p-4 text-dark-text">{doc.author}</td><td className="p-4"><a href={doc.file.url} target="_blank" rel="noreferrer" className="flex items-center space-x-2 px-4 py-2 rounded-md bg-slate-200 text-slate-800 hover:bg-slate-300 font-semibold transition-colors duration-200">{Icons.view}<span>Ver</span></a></td></tr>))}</tbody></table></Card></div> );
 const MeetingRecordsPage: React.FC<{ meetingRecords: MeetingRecord[], students: Student[], teachers: Teacher[], openModal: (modal: any) => void }> = ({ meetingRecords, students, teachers, openModal }) => { const getAttendees = (record: MeetingRecord) => { const teacherNames = record.attendees.teachers.map(id => teachers.find(t => t.id === id)?.name).filter(Boolean).join(', '); const studentNames = record.attendees.students.map(id => students.find(s => s.id === id)?.name).filter(Boolean).join(', '); return `Docentes: ${teacherNames || 'N/A'}. Alumnos: ${studentNames || 'N/A'}.`; }; return ( <div><PageTitle title="Registro de Reuniones"><Button onClick={() => openModal({ type: 'ADD_MEETING' })}>{Icons.plus}<span>Registrar Reunión</span></Button></PageTitle><div className="space-y-6">{meetingRecords.map(record => ( <Card key={record.id}><h3 className="text-xl font-bold">{record.title}</h3><p className="text-sm text-medium-text">{record.date.toLocaleDateString('es-CL')} | {record.startTime} - {record.endTime}</p><p className="mt-2">{record.details}</p><p className="mt-4 text-sm font-semibold">Asistentes:</p><p className="text-sm">{getAttendees(record)}</p><div className="flex justify-end space-x-2 mt-4"><Button onClick={() => openModal({ type: 'EDIT_MEETING', data: record })} className="p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800" title="Editar">{Icons.edit}</Button><Button onClick={() => openModal({ type: 'DELETE_MEETING', data: record })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button></div></Card> ))}</div></div> ); };
-const SiteManagementPage: React.FC<{ siteLog: SiteLog[] }> = ({ siteLog }) => ( <div><PageTitle title="Gestión del Sitio (Log de Actividad)" /><Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold">Fecha y Hora</th><th className="p-4 font-semibold">Usuario</th><th className="p-4 font-semibold">Acción</th><th className="p-4 font-semibold">Descripción</th></tr></thead><tbody>{[...siteLog].reverse().map(log => (<tr key={log.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4">{log.timestamp.toLocaleString('es-CL')}</td><td className="p-4">{log.user}</td><td className="p-4"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${log.action.includes('Crear') ? 'bg-green-100 text-green-800' : log.action.includes('Eliminar') ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{log.action}</span></td><td className="p-4">{log.description}</td></tr>))}</tbody></table></Card></div> );
-const StudentFilesPage: React.FC<any> = ({ students, anotaciones, professionalActivities, personalDocuments, gradeReports, subjects, openModal }) => ( <FilesPage title="Expediente de Alumnos" persons={students} getAnotaciones={id => anotaciones.filter((a: Anotacion) => a.studentId === id)} getProfessionalActivities={id => professionalActivities.filter((a: ProfessionalActivity) => a.studentId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'student' && doc.ownerId === id)} getGradeReports={id => gradeReports.filter((r: GradeReport) => r.studentId === id)} subjects={subjects} openModal={openModal} personType="student" />);
+const SiteManagementPage: React.FC<{ siteLog: SiteLog[] }> = ({ siteLog }) => ( <div><PageTitle title="Gestión del Sitio (Log de Actividad)" /><Card><table className="w-full text-left"><thead><tr className="border-b"><th className="p-4 font-semibold text-dark-text">Fecha y Hora</th><th className="p-4 font-semibold text-dark-text">Usuario</th><th className="p-4 font-semibold text-dark-text">Acción</th><th className="p-4 font-semibold text-dark-text">Descripción</th></tr></thead><tbody>{[...siteLog].reverse().map(log => (<tr key={log.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-4 text-dark-text">{log.timestamp.toLocaleString('es-CL')}</td><td className="p-4 text-dark-text">{log.user}</td><td className="p-4"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${log.action.includes('Crear') ? 'bg-green-100 text-green-800' : log.action.includes('Eliminar') ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{log.action}</span></td><td className="p-4 text-dark-text">{log.description}</td></tr>))}</tbody></table></Card></div> );
+const StudentFilesPage: React.FC<any> = ({ students, anotaciones, professionalActivities, personalDocuments, gradeReports, subjects, surveys, openModal }) => ( <FilesPage title="Expediente de Alumnos" persons={students} getAnotaciones={id => anotaciones.filter((a: Anotacion) => a.studentId === id)} getProfessionalActivities={id => professionalActivities.filter((a: ProfessionalActivity) => a.studentId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'student' && doc.ownerId === id)} getGradeReports={id => gradeReports.filter((r: GradeReport) => r.studentId === id)} getSurveys={id => surveys.filter((s: Survey) => s.studentId === id)} subjects={subjects} openModal={openModal} personType="student" />);
 const TeacherFilesPage: React.FC<any> = ({ teachers, teacherProfessionalActivities, personalDocuments, openModal }) => ( <FilesPage title="Expediente de Docentes" persons={teachers} getAnotaciones={() => []} getProfessionalActivities={id => teacherProfessionalActivities.filter((a: TeacherProfessionalActivity) => a.teacherId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'teacher' && doc.ownerId === id)} openModal={openModal} personType="teacher" />);
+const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], subjects: Subject[], teachers: Teacher[] }> = ({ surveys, students, subjects, teachers }) => {
+    const [filters, setFilters] = useState({ subjectId: '', teacherId: '' });
+    const completedSurveys = useMemo(() => surveys.filter(s => s.status === 'Completada'), [surveys]);
 
-const FilesPage: React.FC<any> = ({ title, persons, getAnotaciones, getProfessionalActivities, getPersonalDocuments, getGradeReports, subjects, openModal, personType }) => {
+    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const filteredSurveys = useMemo(() => {
+        return completedSurveys.filter(survey => {
+            const subjectMatch = !filters.subjectId || survey.subjectId === parseInt(filters.subjectId);
+            const teacherMatch = !filters.teacherId || survey.teacherId === parseInt(filters.teacherId);
+            return subjectMatch && teacherMatch;
+        });
+    }, [completedSurveys, filters]);
+    
+    const findStudent = (id: number) => students.find(s => s.id === id);
+    const findSubject = (id: number) => subjects.find(s => s.id === id);
+    const findTeacher = (id?: number) => teachers.find(t => t.id === id);
+
+    return (
+        <div>
+            <PageTitle title="Gestión de Encuestas" />
+            <Card className="mb-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label className="font-semibold text-sm">Filtrar por Asignatura</label>
+                        <Select name="subjectId" value={filters.subjectId} onChange={handleFilterChange}>
+                            <option value="">Todas las Asignaturas</option>
+                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </Select>
+                    </div>
+                     <div>
+                        <label className="font-semibold text-sm">Filtrar por Docente</label>
+                        <Select name="teacherId" value={filters.teacherId} onChange={handleFilterChange}>
+                            <option value="">Todos los Docentes</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}
+                        </Select>
+                    </div>
+                    <div className="md:col-start-3 flex justify-end">
+                        <Button onClick={() => exportSurveysToCsv(filteredSurveys, students, subjects, teachers)} className="bg-green-600 hover:bg-green-700 text-white" disabled={filteredSurveys.length === 0}>
+                            {Icons.excel}<span>Exportar a Excel</span>
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+            <Card>
+                 <table className="w-full text-left">
+                    <thead>
+                        <tr className="border-b">
+                            <th className="p-4 font-semibold text-dark-text">Alumno</th>
+                            <th className="p-4 font-semibold text-dark-text">Asignatura</th>
+                            <th className="p-4 font-semibold text-dark-text">Docente</th>
+                            <th className="p-4 font-semibold text-dark-text">Fecha Completada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredSurveys.length > 0 ? filteredSurveys.map(survey => {
+                            const student = findStudent(survey.studentId);
+                            const subject = findSubject(survey.subjectId);
+                            const teacher = findTeacher(survey.teacherId);
+                            return (
+                                <tr key={survey.id} className="border-b last:border-0 hover:bg-slate-50">
+                                    <td className="p-4 font-medium text-dark-text">{student?.name} {student?.lastName}</td>
+                                    <td className="p-4 text-dark-text">{subject?.name}</td>
+                                    <td className="p-4 text-dark-text">{teacher?.name} {teacher?.lastName}</td>
+                                    <td className="p-4 text-dark-text">{survey.completionDate ? new Date(survey.completionDate).toLocaleString('es-CL') : 'N/A'}</td>
+                                </tr>
+                            );
+                        }) : (
+                            <tr><td colSpan={4} className="text-center p-8 text-medium-text">No se encontraron encuestas completadas con los filtros seleccionados.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </Card>
+        </div>
+    );
+};
+
+const FilesPage: React.FC<any> = ({ title, persons, getAnotaciones, getProfessionalActivities, getPersonalDocuments, getGradeReports, getSurveys, subjects, openModal, personType }) => {
     const [selectedPerson, setSelectedPerson] = useState<(Student | Teacher) | null>(persons[0] || null);
     useEffect(() => { if (!selectedPerson && persons.length > 0) setSelectedPerson(persons[0]); }, [persons, selectedPerson]);
     useEffect(() => { setSelectedPerson(persons[0] || null); }, [persons]);
 
     return (
-        <div><PageTitle title={title} /><div className="flex space-x-8 items-start"><div className="w-1/4"><Card><ul className="space-y-2 max-h-[70vh] overflow-y-auto">{persons.map((person: Student | Teacher) => ( <li key={person.id}><button onClick={() => setSelectedPerson(person)} className={`w-full text-left px-4 py-2 rounded-lg ${selectedPerson?.id === person.id ? 'bg-primary text-white' : 'hover:bg-slate-100'}`}>{person.name} {person.lastName}</button></li> ))}</ul></Card></div><div className="w-3/4">{selectedPerson ? ( <PersonProfile person={selectedPerson} anotaciones={getAnotaciones(selectedPerson.id)} activities={getProfessionalActivities(selectedPerson.id)} documents={getPersonalDocuments(selectedPerson.id)} gradeReports={getGradeReports ? getGradeReports(selectedPerson.id) : []} subjects={subjects} openModal={openModal} personType={personType}/> ) : ( <Card><p>Seleccione una persona para ver su expediente.</p></Card> )}</div></div></div>
+        <div><PageTitle title={title} /><div className="flex space-x-8 items-start"><div className="w-1/4"><Card><ul className="space-y-2 max-h-[70vh] overflow-y-auto">{persons.map((person: Student | Teacher) => ( <li key={person.id}><button onClick={() => setSelectedPerson(person)} className={`w-full text-left px-4 py-2 rounded-lg ${selectedPerson?.id === person.id ? 'bg-primary text-white' : 'hover:bg-slate-100'}`}>{person.name} {person.lastName}</button></li> ))}</ul></Card></div><div className="w-3/4">{selectedPerson ? ( <PersonProfile person={selectedPerson} anotaciones={getAnotaciones(selectedPerson.id)} activities={getProfessionalActivities(selectedPerson.id)} documents={getPersonalDocuments(selectedPerson.id)} gradeReports={getGradeReports ? getGradeReports(selectedPerson.id) : []} surveys={getSurveys ? getSurveys(selectedPerson.id) : []} subjects={subjects} openModal={openModal} personType={personType}/> ) : ( <Card><p>Seleccione una persona para ver su expediente.</p></Card> )}</div></div></div>
     );
 };
 
-const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documents, gradeReports, subjects, openModal, personType }) => {
+const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documents, gradeReports, surveys, subjects, openModal, personType }) => {
     
-    const studentTabs = ['Resumen', 'Informes', 'Anotaciones', 'Actividad', 'Documentos'];
+    const studentTabs = ['Resumen', 'Informes', 'Anotaciones', 'Actividad', 'Documentos', 'Encuestas'];
     const teacherTabs = ['Resumen', 'Actividad', 'Documentos'];
     const availableTabs = personType === 'student' ? studentTabs : teacherTabs;
     
@@ -395,7 +921,17 @@ const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documen
     
     useEffect(() => { setActiveTab(availableTabs[0]); }, [person]);
 
-    const TabButton: React.FC<{label: string}> = ({ label }) => ( <button onClick={() => setActiveTab(label)} className={`px-4 py-2 font-semibold border-b-2 transition-colors ${activeTab === label ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text'}`}>{label}</button> );
+    const handleDownloadPdf = () => {
+        const reportData = {
+            gradeReports,
+            anotaciones,
+            activities,
+            subjects
+        };
+        generatePdfReport(person, personType, reportData);
+    };
+
+    const TabButton: React.FC<{label: string; children: React.ReactNode}> = ({ label, children }) => ( <button onClick={() => setActiveTab(label)} className={`px-4 py-2 font-semibold border-b-2 transition-colors flex items-center space-x-2 ${activeTab === label ? 'border-primary text-primary' : 'border-transparent text-medium-text hover:text-dark-text'}`}>{children}</button> );
     const handleAddClick = () => {
         switch(activeTab) {
             case 'Anotaciones': openModal({ type: 'ADD_ANOTACION', data: { studentId: person.id } }); break;
@@ -424,6 +960,7 @@ const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documen
             case 'Anotaciones': return <Card> <FullAnotacionList anotaciones={anotaciones} /> </Card>;
             case 'Actividad': return <Card> <FullActivityList activities={activities} /> </Card>;
             case 'Documentos': return <Card> <FullDocumentList documents={documents} /> </Card>;
+            case 'Encuestas': return <Card> <FullSurveyList surveys={surveys} subjects={subjects} student={person} openModal={openModal} /> </Card>;
             default: return null;
         }
     };
@@ -432,6 +969,27 @@ const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documen
     const FullAnotacionList = ({ anotaciones }: any) => ( <ul className="space-y-4 max-h-96 overflow-y-auto">{anotaciones.map((a: Anotacion) => <li key={a.id} className="border-l-4 pl-4 data-[type=Positiva]:border-green-500 data-[type=Negativa]:border-red-500 data-[type=Observación]:border-yellow-500" data-type={a.type}><p>{a.text}</p><p className="text-xs text-light-text mt-1">{a.timestamp.toLocaleDateString('es-CL')} - {a.type}</p></li>)}</ul> );
     const FullActivityList = ({ activities }: any) => (  <ul className="space-y-2">{activities.map((a: any) => <li key={a.id}>{a.title} ({a.type}) - {new Date(a.date).toLocaleDateString('es-CL')}</li>)}</ul> );
     const FullDocumentList = ({ documents }: any) => ( <ul className="space-y-2">{documents.map((d: PersonalDocument) => <li key={d.id} className="flex items-center justify-between"><a href={d.file.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{d.file.name}</a></li>)}</ul> );
+    const FullSurveyList = ({ surveys, subjects, student, openModal }: { surveys: Survey[], subjects: Subject[], student: Student, openModal: (modal: any) => void }) => (
+        <ul className="space-y-3">
+            {surveys.length === 0 && <p className="text-medium-text">No hay encuestas disponibles para este alumno.</p>}
+            {surveys.map((s: Survey) => {
+                const subject = subjects.find((sub: Subject) => sub.id === s.subjectId);
+                return (
+                    <li key={s.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                        <div className="font-medium">{subject?.name}</div>
+                        <div>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full mr-4 ${s.status === 'Completada' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{s.status}</span>
+                            {s.status === 'Incompleta' && (
+                                <Button onClick={() => openModal({ type: 'COMPLETE_SURVEY', data: { survey: s, student, subject } })} className="bg-primary text-white">Completar</Button>
+                            )}
+                        </div>
+                    </li>
+                )
+            })}
+        </ul>
+    );
+    
+    const incompleteSurveysCount = useMemo(() => personType === 'student' ? surveys.filter((s: Survey) => s.status === 'Incompleta').length : 0, [surveys, personType]);
 
     return (
         <div className="space-y-6">
@@ -440,12 +998,25 @@ const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documen
                     <img src={person.photo} alt="" className="w-24 h-24 rounded-full object-cover border-4 border-primary-light bg-slate-200"/>
                     <div><h3 className="text-2xl font-bold">{person.name} {person.lastName}</h3><p className="text-medium-text">{person.email}</p><p className="text-medium-text">{person.phone}</p></div>
                 </div>
+                <div>
+                    <Button onClick={handleDownloadPdf} className="bg-slate-600 hover:bg-slate-700 text-white">
+                        {React.cloneElement(Icons.download, { className: 'w-5 h-5' })}
+                        <span>Descargar Resumen PDF</span>
+                    </Button>
+                </div>
             </Card>
             
             <div className="bg-white rounded-lg shadow">
                  <div className="border-b border-slate-200 flex justify-between items-center px-6">
-                    <nav className="flex space-x-2"> {availableTabs.map(tab => <TabButton key={tab} label={tab} />)} </nav>
-                     {activeTab !== 'Resumen' && activeTab !== 'Informes' && <Button onClick={handleAddClick} className="bg-slate-200 text-slate-800 hover:bg-slate-300 my-2">{Icons.plus}<span>{getAddButtonText()}</span></Button> }
+                    <nav className="flex space-x-2">
+                        {availableTabs.map(tab => (
+                            <TabButton key={tab} label={tab}>
+                                <span>{tab}</span>
+                                {tab === 'Encuestas' && incompleteSurveysCount > 0 && <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{incompleteSurveysCount}</span>}
+                            </TabButton>
+                        ))}
+                    </nav>
+                     {activeTab !== 'Resumen' && activeTab !== 'Informes' && activeTab !== 'Encuestas' && <Button onClick={handleAddClick} className="bg-slate-200 text-slate-800 hover:bg-slate-300 my-2">{Icons.plus}<span>{getAddButtonText()}</span></Button> }
                 </div>
                 <div className="p-6"> {renderTabContent()} </div>
             </div>
@@ -470,6 +1041,9 @@ const App: React.FC = () => {
     const [teacherProfessionalActivities, setTeacherProfessionalActivities] = useState<TeacherProfessionalActivity[]>(initialTeacherProfessionalActivities);
     const [personalDocuments, setPersonalDocuments] = useState<PersonalDocument[]>(initialPersonalDocuments);
     const [siteLog, setSiteLog] = useState<SiteLog[]>(initialSiteLog);
+    const [quickLinks, setQuickLinks] = useState<QuickLink[]>(initialQuickLinks);
+    const [bookmarks, setBookmarks] = useState<Bookmark[]>(initialBookmarks);
+    const [surveys, setSurveys] = useState<Survey[]>(initialSurveys);
 
     const [currentView, setCurrentView] = useState<View>('DASHBOARD');
     const [isLoading, setIsLoading] = useState(true);
@@ -492,7 +1066,7 @@ const App: React.FC = () => {
     const handleDeleteSubject = (subject: Subject) => { setSubjects(prev => prev.filter(s => s.id !== subject.id)); setModal(null); logAction('Eliminar Asignatura', subject.name); };
     const handleAddGrade = (studentId: number, subjectId: number) => { const newGrade: Grade = { id: Date.now(), studentId, subjectId, lastModified: new Date().toISOString(), isFinalized: false }; setGrades(prev => [...prev, newGrade]); setModal(null); const studentName = students.find(s=>s.id === studentId)?.name; const subjectName = subjects.find(s=>s.id === subjectId)?.name; logAction('Crear Calificación', `Para ${studentName} en ${subjectName}`); };
     const handleDeleteGrade = (grade: Grade) => { setGrades(prev => prev.filter(g => g.id !== grade.id)); setModal(null); const studentName = students.find(s=>s.id === grade.studentId)?.name; const subjectName = subjects.find(s=>s.id === grade.subjectId)?.name; logAction('Eliminar Calificación', `Para ${studentName} en ${subjectName}`);};
-    const handleGenerateReport = ( grade: Grade, gradeSummary: GradeReport['gradeSummary'], competencyScores: (number | null)[], feedback: string ) => { setGrades(prev => prev.map(g => g.id === grade.id ? { ...g, grade1: gradeSummary.grade1, grade2: gradeSummary.grade2, grade3: gradeSummary.grade3, competencyScores, isFinalized: true, lastModified: new Date().toISOString() } : g)); setGradeReports(prev => [...prev, { id: Date.now(), gradeId: grade.id, studentId: grade.studentId, subjectId: grade.subjectId, teacherId: teachers[0].id, generationDate: new Date(), gradeSummary, competencyScores, feedback, status: 'Pendiente Aceptación', signatureDate: new Date(), }]); setModal(null); const studentName = students.find(s=>s.id === grade.studentId)?.name; logAction('Generar Informe', `Para ${studentName}`); };
+    const handleGenerateReport = ( grade: Grade, gradeSummary: GradeReport['gradeSummary'], competencyScores: (number | null)[], feedback: string ) => { setGrades(prev => prev.map(g => g.id === grade.id ? { ...g, grade1: gradeSummary.grade1, grade2: gradeSummary.grade2, grade3: gradeSummary.grade3, competencyScores, isFinalized: true, lastModified: new Date().toISOString() } : g)); setGradeReports(prev => [...prev, { id: Date.now(), gradeId: grade.id, studentId: grade.studentId, subjectId: grade.subjectId, teacherId: teachers[0].id, generationDate: new Date(), gradeSummary, competencyScores, feedback, status: 'Pendiente Aceptación', signatureDate: new Date(), }]); const studentName = students.find(s=>s.id === grade.studentId)?.name; logAction('Generar Informe', `Para ${studentName}`); const existingSurvey = surveys.find(s => s.gradeId === grade.id); if (!existingSurvey) { const subject = subjects.find(s => s.id === grade.subjectId); const newSurvey: Survey = { id: Date.now(), gradeId: grade.id, studentId: grade.studentId, subjectId: grade.subjectId, teacherId: subject?.teacherId, status: 'Incompleta', answers: [] }; setSurveys(prev => [...prev, newSurvey]); } setModal(null); };
     const handleAcceptReport = (reportId: number) => { setGradeReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'Completado', studentAcceptanceDate: new Date() } : r)); setModal(null); const studentName = students.find(s=>s.id === gradeReports.find(r=>r.id === reportId)!.studentId)?.name; logAction('Aceptar Informe', `Por ${studentName}`); };
     const handleSaveAnotacion = (anotacion: Anotacion) => { setAnotaciones(prev => [...prev, { ...anotacion, id: Date.now(), timestamp: new Date() }]); setModal(null); const studentName = students.find(s=>s.id === anotacion.studentId)?.name; logAction('Crear Anotación', `Para ${studentName}`); };
     const handleSaveProfessionalActivity = (activity: ProfessionalActivity | TeacherProfessionalActivity) => { if ('studentId' in activity) { setProfessionalActivities(prev => [...prev, { ...activity, id: Date.now() }]); } else { setTeacherProfessionalActivities(prev => [...prev, { ...activity, id: Date.now() }]); } setModal(null); logAction('Crear Actividad Profesional', activity.title); };
@@ -503,8 +1077,11 @@ const App: React.FC = () => {
     const handleDeleteNewsArticle = (article: NewsArticle) => { setNews(prev => prev.filter(a => a.id !== article.id)); setModal(null); logAction('Eliminar Noticia', article.title); };
     const handleSaveMeetingRecord = (record: MeetingRecord) => { const isNew = !record.id; setMeetingRecords(prev => isNew ? [...prev, { ...record, id: Date.now() }] : prev.map(r => r.id === record.id ? record : r)); setModal(null); logAction(isNew ? 'Crear Reunión' : 'Editar Reunión', record.title); };
     const handleDeleteMeetingRecord = (record: MeetingRecord) => { setMeetingRecords(prev => prev.filter(r => r.id !== record.id)); setModal(null); logAction('Eliminar Reunión', record.title); };
+    const handleSaveQuickLink = (link: QuickLink) => { const isNew = link.id === 0; setQuickLinks(prev => isNew ? [...prev, { ...link, id: Date.now() }] : prev.map(l => l.id === link.id ? link : l)); setModal(null); logAction(isNew ? 'Crear Enlace Rápido' : 'Editar Enlace Rápido', link.label); };
+    const handleDeleteQuickLink = (link: QuickLink) => { setQuickLinks(prev => prev.filter(l => l.id !== link.id)); setModal(null); logAction('Eliminar Enlace Rápido', link.label); };
+    const handleSaveSurvey = (survey: Survey, answers: SurveyAnswer[]) => { setSurveys(prev => prev.map(s => s.id === survey.id ? { ...s, status: 'Completada', completionDate: new Date().toISOString(), answers } : s)); setModal(null); const studentName = students.find(s => s.id === survey.studentId)?.name; const subjectName = subjects.find(s => s.id === survey.subjectId)?.name; logAction('Completar Encuesta', `Alumno: ${studentName}, Asignatura: ${subjectName}`); };
 
-    const dataContext = { students, teachers, subjects, grades, activityLog, anotaciones, calendarEvents, news, gradeReports, officialDocuments, meetingRecords, professionalActivities, teacherProfessionalActivities, personalDocuments, siteLog, openModal: setModal };
+    const dataContext = { students, teachers, subjects, grades, activityLog, anotaciones, calendarEvents, news, gradeReports, officialDocuments, meetingRecords, professionalActivities, teacherProfessionalActivities, personalDocuments, siteLog, quickLinks, bookmarks, surveys, openModal: setModal, setCurrentView };
     
     if (isLoading) return <LoadingScreen />;
 
@@ -526,6 +1103,7 @@ const App: React.FC = () => {
                     case 'DELETE_EVENT': handleDeleteCalendarEvent(modal.data); break;
                     case 'DELETE_NEWS': handleDeleteNewsArticle(modal.data); break;
                     case 'DELETE_MEETING': handleDeleteMeetingRecord(modal.data); break;
+                    case 'DELETE_QUICK_LINK': handleDeleteQuickLink(modal.data); break;
                 }
             }} />}
             {modal?.type === 'ADD_STUDENT' && <StudentFormModal onSave={handleSaveStudent} onClose={() => setModal(null)} />}
@@ -546,6 +1124,9 @@ const App: React.FC = () => {
             {modal?.type === 'EDIT_NEWS' && <NewsArticleFormModal article={modal.data} onSave={handleSaveNewsArticle} onClose={() => setModal(null)} />}
             {modal?.type === 'ADD_MEETING' && <MeetingRecordFormModal students={students} teachers={teachers} onSave={handleSaveMeetingRecord} onClose={() => setModal(null)} />}
             {modal?.type === 'EDIT_MEETING' && <MeetingRecordFormModal record={modal.data} students={students} teachers={teachers} onSave={handleSaveMeetingRecord} onClose={() => setModal(null)} />}
+            {modal?.type === 'ADD_QUICK_LINK' && <QuickLinkFormModal onSave={handleSaveQuickLink} onClose={() => setModal(null)} />}
+            {modal?.type === 'EDIT_QUICK_LINK' && <QuickLinkFormModal link={modal.data} onSave={handleSaveQuickLink} onClose={() => setModal(null)} />}
+            {modal?.type === 'COMPLETE_SURVEY' && <SurveyFormModal survey={modal.data.survey} student={modal.data.student} subject={modal.data.subject} onSave={handleSaveSurvey} onClose={() => setModal(null)} />}
         </div>
     );
 };
