@@ -268,14 +268,6 @@ export interface QuickLink {
   url: string;
 }
 
-// --- Bookmark Type ---
-export interface Bookmark {
-  id: number;
-  label: string;
-  view: 'DASHBOARD' | 'STUDENTS' | 'TEACHERS' | 'SUBJECTS' | 'GRADES' | 'STUDENT_FILES' | 'TEACHER_FILES' | 'CALENDAR' | 'NEWS' | 'DOCUMENTS' | 'MEETINGS' | 'SITE_MANAGEMENT' | 'SURVEYS';
-  iconName: string;
-}
-
 // --- Survey Types ---
 
 export interface SurveyAnswer {

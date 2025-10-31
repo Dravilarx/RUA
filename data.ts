@@ -1,9 +1,9 @@
-import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, SiteLog, QuickLink, Bookmark, Survey } from './types';
+import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, SiteLog, QuickLink, Survey } from './types';
 
 // Placeholder base64 images for demonstration
 const placeholderUserLight = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E1YjRjYyIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
 const placeholderUserDark = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzQ3NTU2OSIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
-const placeholderNewsImage = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
+const placeholderNewsImage = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
 
 export const initialStudents: Student[] = [
@@ -365,16 +365,6 @@ export const initialQuickLinks: QuickLink[] = [
   { id: 4, label: 'UpToDate - Clinical Decision Support', url: 'https://www.uptodate.com/' },
   { id: 5, label: 'SERAM (Sociedad Española de Radiología Médica)', url: 'https://seram.es/' }
 ];
-
-export const initialBookmarks: Bookmark[] = [
-  { id: 1, label: 'Alumnos', view: 'STUDENTS', iconName: 'students' },
-  { id: 2, label: 'Docentes', view: 'TEACHERS', iconName: 'teachers' },
-  { id: 3, label: 'Calificaciones', view: 'GRADES', iconName: 'grades' },
-  { id: 4, label: 'Expedientes', view: 'STUDENT_FILES', iconName: 'studentFile' },
-  { id: 5, label: 'Calendario', view: 'CALENDAR', iconName: 'calendar' },
-  { id: 6, label: 'Noticias', view: 'NEWS', iconName: 'news' },
-];
-
 
 export const surveyQuestions = [
     { id: 1, type: 'multiple-choice', text: 'Al iniciar la asignatura/rotación el docente dio a conocer en un lenguaje claro la planificación de la asignatura, considerando objetivos, competencias a desarrollar, contenidos y metodología de evaluación.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
