@@ -1,4 +1,4 @@
-import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, SiteLog, QuickLink, Survey, User } from './types';
+import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, SiteLog, QuickLink, Survey, User, GeneralSurvey, SurveyAssignment } from './types';
 
 // Placeholder base64 images for demonstration
 const placeholderUserLight = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E1YjRjYyIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
@@ -130,7 +130,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'Se informa a toda la comunidad académica que ha comenzado el proceso de autoevaluación con miras a la acreditación del programa para el período 2025-2029. Se invita a todos los estamentos a participar activamente en las reuniones y encuestas que se realizarán durante los próximos meses. Su participación es fundamental para el éxito de este proceso.', 
     author: 'Dirección de Postgrado', 
     date: new Date(Date.now() - 86400000 * 2), 
-    imageUrl: 'https://images.unsplash.com/photo-1581092580424-3a213694157c?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1581092580424-3a213694157c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   { 
     id: 2, 
@@ -138,7 +138,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'Nos complace anunciar una nueva alianza estratégica con el Hospital Clínico Metropolitano, que permitirá a nuestros residentes acceder a rotaciones en unidades de alta especialización, incluyendo neurorradiología intervencionista y radiología mamaria avanzada. Esta colaboración fortalecerá la formación práctica y la exposición a casos complejos.', 
     author: 'Coordinación Académica', 
     date: new Date(Date.now() - 86400000 * 5), 
-    imageUrl: 'https://images.unsplash.com/photo-1612534948600-b1d53bfc73a6?q=80&w=1974&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    imageUrl: 'https://images.unsplash.com/photo-1612534948600-b1d53bfc73a6?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
     link: 'https://www.hospital-clinico.cl',
     linkText: 'Leer más en el sitio del Hospital'
   },
@@ -156,7 +156,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'Se han publicado los resultados de la Beca de Investigación para Residentes 2024. Felicitamos a la Dra. Ana González por adjudicarse el fondo con su proyecto "Inteligencia Artificial para la detección precoz de metástasis hepáticas". Agradecemos a todos los postulantes por su excelente participación.',
     author: 'Comité de Investigación',
     date: new Date(Date.now() - 86400000 * 15),
-    imageUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   }
 ];
 
@@ -367,33 +367,34 @@ export const initialQuickLinks: QuickLink[] = [
 ];
 
 export const surveyQuestions = [
-    { id: 1, type: 'multiple-choice', text: 'Al iniciar la asignatura/rotación el docente dio a conocer en un lenguaje claro la planificación de la asignatura, considerando objetivos, competencias a desarrollar, contenidos y metodología de evaluación.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 2, type: 'multiple-choice', text: 'Las actividades pedagógicas propuestas por el docente permitieron ejercitar las competencias que este programa de formación promueve.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 3, type: 'multiple-choice', text: 'El docente desarrolló estrategias que ayudaron a potenciar habilidades de comunicación y trabajo en equipo.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 4, type: 'multiple-choice', text: 'El docente promovió la realización de procedimientos clínicos de acuerdo al nivel de conocimientos y competencias adquiridas por el residente, ajustándose a las competencias u objetivos por cumplir en esta asignatura.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 5, type: 'multiple-choice', text: 'Las actividades propuestas por el docente permitieron mantener el interés y motivación durante el desarrollo de la asignatura/rotación', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 6, type: 'multiple-choice', text: 'Las actividades propuestas por el docente promovieron la reflexión análisis disciplinar', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 7, type: 'multiple-choice', text: 'Las actividades propuestas por el docente facilitaron el aprendizaje y fortalecimiento de destrezas técnicas.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 8, type: 'multiple-choice', text: 'El docente dominaba las temáticas que desarrolló durante la rotación, utilizando la medicina basada en la evidencia y no sólo la experiencia.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 9, type: 'multiple-choice', text: 'El docente verificó constantemente el grado de aprendizaje en cada una de las actividades desarrolladas, entregando retroalimentación constante.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 10, type: 'multiple-choice', text: 'El docente tuvo disposición para aclarar dudas y responder respuestas.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 11, type: 'multiple-choice', text: 'El docente estuvo disponible y dedicó el tiempo necesario para la realización de distintas actividades y supervisión directa.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 12, type: 'multiple-choice', text: 'El docente demostró un trato respetuoso con los residentes, equipo de salud y pacientes durante la rotación', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 13, type: 'multiple-choice', text: 'El material de estudio recomendado para la rotación fue pertinente, actualizado y relevante para profundizar el conocimiento de la disciplina.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 14, type: 'multiple-choice', text: 'El docente explicó el proceso evacuativo, es decir, con que procedimientos, cuándo se realizarían y sus respectivas ponderaciones.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 15, type: 'multiple-choice', text: 'El docente al finalizar la evaluación retro alimenta el desempeño alcanzado, mencionando aspectos positivos y aspectos a mejorar.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 16, type: 'multiple-choice', text: 'Las evaluaciones realizadas fueron adecuadas y coherentes con las actividades desarrolladas durante la rotación.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 17, type: 'multiple-choice', text: 'El docente calificó considerando los criterios específicos de evaluación que están establecidos para esta rotación', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 18, type: 'multiple-choice', text: 'El docente entregó las calificaciones dentro del plazo reglamentario establecido.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 19, type: 'multiple-choice', text: 'El docente mantuvo actualizado el archivo personal del residente.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 20, type: 'multiple-choice', text: 'El docente incluyó en el archivo personal del residente todas las actividades realizadas y su cumplimiento, las evaluaciones y los trabajos desarrollados durante el transcurso de la rotación.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 21, type: 'multiple-choice', text: 'Los recursos (equipamiento, infraestructura, materiales clínicos) utilizados durante la rotación fueron suficientes y adecuados.', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
-    { id: 22, type: 'open-text', text: '¿Qué aspectos considera Ud., que pueden mejorarse para el desarrollo de la rotación?' },
-    { id: 23, type: 'open-text', text: '¿Qué aspectos considera positivos y destacaría de la rotación?' },
-    { id: 24, type: 'open-text', text: 'Mencione que aspectos no han sido considerados en esta encuesta y podrían ser útiles de evaluar.' }
+    { id: 1, type: 'multiple-choice', text: 'Al iniciar la asignatura/rotación el docente dio a conocer en un lenguaje claro la planificación de la asignatura, considerando objetivos, competencias a desarrollar, contenidos y metodología de enseñanza:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 2, type: 'multiple-choice', text: 'Las actividades pedagógicas propuestas por el docente permitieron ejercitar las competencias que este programa de formación promueve:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 3, type: 'multiple-choice', text: 'El docente desarrolló estrategias que ayudaron al logro de las competencias propuestas:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 4, type: 'multiple-choice', text: 'El docente promovió la realización de procedimientos y actividades clínicas en un ambiente de aprendizaje adecuado:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 5, type: 'multiple-choice', text: 'El docente utilizó estrategias metodológicas que fomentaron la participación activa del estudiante:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 6, type: 'multiple-choice', text: 'El docente promovió la búsqueda de información científica como apoyo para el aprendizaje:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 7, type: 'multiple-choice', text: 'El docente estimuló la reflexión crítica y la autocrítica:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 8, type: 'multiple-choice', text: 'El docente estuvo disponible para resolver dudas o inquietudes relacionadas con el aprendizaje:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 9, type: 'multiple-choice', text: 'El docente mantuvo un trato respetuoso y cordial con los estudiantes:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 10, type: 'multiple-choice', text: 'El docente fomentó el trabajo colaborativo entre los residentes:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 11, type: 'multiple-choice', text: 'El docente fue un modelo ético y profesional:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 12, type: 'multiple-choice', text: 'El docente entregó retroalimentación constructiva sobre el desempeño del estudiante:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 13, type: 'multiple-choice', text: 'El docente al finalizar la evaluación retroalimenta el desempeño alcanzado, mencionando aspectos positivos y aspectos a mejorar:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 14, type: 'multiple-choice', text: 'Las evaluaciones realizadas fueron adecuadas y coherentes con las actividades desarrolladas durante la rotación:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 15, type: 'multiple-choice', text: 'El docente calificó considerando los criterios específicos de evaluación que están establecidos para esta rotación:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 16, type: 'multiple-choice', text: 'El docente entregó las calificaciones dentro del plazo reglamentario establecido:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 17, type: 'multiple-choice', text: 'El docente mantuvo actualizado el archivo personal del residente:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 18, type: 'multiple-choice', text: 'El docente incluyó en el archivo personal del residente todas las actividades realizadas y su cumplimiento, las evaluaciones y los trabajos desarrollados durante el transcurso de la rotación:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 19, type: 'multiple-choice', text: 'Los recursos (equipamiento, infraestructura, materiales clínicos) utilizados durante la rotación fueron suficientes y adecuados:', options: ['Siempre', 'Algunas veces', 'Nunca', 'No aplica'] },
+    { id: 20, type: 'open-text', text: '¿Qué aspectos considera Ud. que pueden mejorarse para el desarrollo de la rotación?' },
+    { id: 21, type: 'open-text', text: '¿Qué aspectos considera positivos y destacaría de la rotación?' },
+    { id: 22, type: 'open-text', text: 'Mencione qué aspectos no han sido considerados en esta encuesta y podrían ser útiles de evaluar:' }
 ];
 
 export const initialSurveys: Survey[] = [];
+export const initialGeneralSurveys: GeneralSurvey[] = [];
+export const initialSurveyAssignments: SurveyAssignment[] = [];
+
 
 const studentUsers: User[] = initialStudents.map(s => ({
     id: `student-${s.id}`,

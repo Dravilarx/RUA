@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports, initialOfficialDocuments, initialMeetingRecords, initialProfessionalActivities, initialTeacherProfessionalActivities, initialPersonalDocuments, initialSiteLog, initialQuickLinks, initialSurveys, surveyQuestions, initialUsers } from './data';
-import type { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, ActivityType, TeacherActivityType, SiteLog, QuickLink, Survey, SurveyAnswer, User, Role } from './types';
+import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports, initialOfficialDocuments, initialMeetingRecords, initialProfessionalActivities, initialTeacherProfessionalActivities, initialPersonalDocuments, initialSiteLog, initialQuickLinks, initialSurveys, surveyQuestions, initialUsers, initialGeneralSurveys, initialSurveyAssignments } from './data';
+import type { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, ActivityType, TeacherActivityType, SiteLog, QuickLink, Survey, SurveyAnswer, User, Role, GeneralSurvey, SurveyAssignment } from './types';
 
 // @ts-ignore
 const { jsPDF } = window.jspdf;
@@ -310,7 +310,7 @@ const validateField = (name: string, value: string): string => {
 
 // --- Helper Components & Icons ---
 const Icon = ({ path, className = 'w-6 h-6' }: { path: string; className?: string }) => ( <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d={path} /></svg> );
-const Icons = { dashboard: <Icon path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />, students: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, teachers: <Icon path="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />, subjects: <Icon path="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />, grades: <Icon path="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />, studentFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, teacherFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, calendar: <Icon path="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />, news: <Icon path="M4 5v14h16V5H4zm2 12H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm12 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z" />, documents: <Icon path="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />, meetings: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, site_management: <Icon path="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49.42l.38-2.65c.61-.25 1.17-.59-1.69.98l2.49 1c.23.09.49 0 .61.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />, surveys: <Icon path="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2V9h2v3zm4-2h-2V7h2v3z" />, logout: <Icon path="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />, plus: <Icon path="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />, edit: <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />, delete: <Icon path="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />, download: <Icon path="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />, view: <Icon path="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />, pdf: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm-2.5.5h1v-1h-1v1zm7 4.5h-3V9h1.5v3H16v-3h1.5v6zm-7-4.5H13v-1H9.5v1z" className='w-5 h-5'/>, excel: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9.5 14.5h-2l-1-2.25L5.5 14.5h-2L6 11l-2.5-3.5h2l1 2.25L7.5 7.5h2L7 11l2.5 3.5zm7 0h-1.5v-1.5h-3V16H10V7.5h1.5v1.5h3V7.5H16v7z" className='w-5 h-5'/>, link: <Icon path="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />, search: <Icon path="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /> };
+const Icons = { dashboard: <Icon path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />, students: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, teachers: <Icon path="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />, subjects: <Icon path="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />, grades: <Icon path="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />, studentFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, teacherFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, calendar: <Icon path="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />, news: <Icon path="M4 5v14h16V5H4zm2 12H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm12 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z" />, documents: <Icon path="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />, meetings: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, site_management: <Icon path="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49.42l.38-2.65c.61-.25 1.17-.59-1.69.98l2.49 1c.23.09.49 0 .61.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />, surveys: <Icon path="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2V9h2v3zm4-2h-2V7h2v3z" />, logout: <Icon path="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />, plus: <Icon path="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />, edit: <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />, delete: <Icon path="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />, download: <Icon path="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />, view: <Icon path="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />, pdf: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm-2.5.5h1v-1h-1v1zm7 4.5h-3V9h1.5v3H16v-3h1.5v6zm-7-4.5H13v-1H9.5v1z" className='w-5 h-5'/>, excel: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9.5 14.5h-2l-1-2.25L5.5 14.5h-2L6 11l-2.5-3.5h2l1 2.25L7.5 7.5h2L7 11l2.5 3.5zm7 0h-1.5v-1.5h-3V16H10V7.5h1.5v1.5h3V7.5H16v7z" className='w-5 h-5'/>, link: <Icon path="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />, search: <Icon path="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />, user_add: <Icon path="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /> };
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => ( <div className={`bg-white rounded-lg shadow p-6 ${className}`}>{children}</div> );
 const Button: React.FC<{ children: React.ReactNode; onClick?: () => void; className?: string; type?: 'button' | 'submit' | 'reset'; disabled?: boolean; [key: string]: any; }> = ({ children, onClick, className = 'bg-primary hover:bg-primary-hover text-white', type = 'button', disabled = false, ...props }) => ( <button type={type} onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded-md font-semibold transition-colors duration-200 flex items-center justify-center space-x-2 disabled:bg-slate-300 disabled:cursor-not-allowed ${className}`} {...props}>{children}</button> );
 const Modal: React.FC<{ children: React.ReactNode; title: string; onClose: () => void; size?: 'lg' | '2xl' | '4xl' | '6xl' }> = ({ children, title, onClose, size = 'lg' }) => { const sizeClasses = { lg: 'max-w-lg', '2xl': 'max-w-2xl', '4xl': 'max-w-4xl', '6xl': 'max-w-6xl' }; return ( <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-start pt-10 overflow-y-auto" onClick={onClose}><div className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} mx-4 mb-10`} onClick={e => e.stopPropagation()}><div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-lg z-10"><h3 className="text-xl font-bold text-dark-text">{title}</h3><button onClick={onClose} className="text-3xl font-light text-slate-400 hover:text-slate-700 leading-none">&times;</button></div><div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div></div></div> ); };
@@ -747,6 +747,150 @@ const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey
     );
 };
 
+const GeneralSurveyFormModal = ({ survey, onSave, onClose }: { survey?: GeneralSurvey, onSave: (survey: GeneralSurvey) => void, onClose: () => void }) => {
+    const [formData, setFormData] = useState<Partial<GeneralSurvey>>(survey || { title: '', description: '', isLink: false, link: '' });
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, isLink: e.target.checked });
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData as GeneralSurvey); };
+    
+    return (
+        <Modal title={survey ? 'Editar Encuesta General' : 'Crear Encuesta General'} onClose={onClose} size="2xl">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <FormRow label="Título"><Input name="title" value={formData.title} onChange={handleChange} required /></FormRow>
+                <FormRow label="Descripción"><Textarea name="description" value={formData.description} onChange={handleChange} rows={4} /></FormRow>
+                <FormRow label="Tipo de Encuesta">
+                    <label className="flex items-center space-x-2">
+                        <input type="checkbox" name="isLink" checked={formData.isLink} onChange={handleCheckboxChange} className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300" />
+                        <span>Es un enlace externo</span>
+                    </label>
+                </FormRow>
+                {formData.isLink && (
+                    <FormRow label="Enlace (URL)"><Input name="link" value={formData.link} onChange={handleChange} placeholder="https://forms.gle/..." required /></FormRow>
+                )}
+                 <p className="text-xs text-medium-text">{!formData.isLink ? 'La encuesta interna usará el set de preguntas estándar de rotaciones.' : 'Los usuarios serán redirigidos a este enlace para completar la encuesta.'}</p>
+                <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar Encuesta</Button></div>
+            </form>
+        </Modal>
+    );
+}
+
+const AssignSurveyModal = ({ survey, users, onSave, onClose }: { survey: GeneralSurvey, users: User[], onSave: (surveyId: number, userIds: string[]) => void, onClose: () => void }) => {
+    const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+
+    const students = users.filter(u => u.type === 'Alumno');
+    const teachers = users.filter(u => u.type === 'Docente');
+
+    const handleUserToggle = (userId: string) => {
+        setSelectedUserIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(userId)) {
+                newSet.delete(userId);
+            } else {
+                newSet.add(userId);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = (type: 'student' | 'teacher', checked: boolean) => {
+        const usersToToggle = type === 'student' ? students : teachers;
+        setSelectedUserIds(prev => {
+            const newSet = new Set(prev);
+            if (checked) {
+                usersToToggle.forEach(user => newSet.add(user.id));
+            } else {
+                usersToToggle.forEach(user => newSet.delete(user.id));
+            }
+            return newSet;
+        });
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(survey.id, Array.from(selectedUserIds));
+    };
+    
+    const allStudentsSelected = students.length > 0 && students.every(s => selectedUserIds.has(s.id));
+    const allTeachersSelected = teachers.length > 0 && teachers.every(t => selectedUserIds.has(t.id));
+
+    return (
+        <Modal title={`Asignar Encuesta: ${survey.title}`} onClose={onClose} size="4xl">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <p>Seleccione los usuarios a los que desea asignar esta encuesta. Las encuestas aparecerán en el expediente personal de cada usuario seleccionado.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Teachers Column */}
+                    <div>
+                        <h4 className="font-bold text-lg mb-2 text-dark-text">Docentes</h4>
+                        <div className="border rounded-lg p-3">
+                            <label className="flex items-center space-x-2 pb-2 border-b mb-2 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={allTeachersSelected}
+                                    onChange={(e) => handleSelectAll('teacher', e.target.checked)}
+                                    className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300"
+                                />
+                                <span>Seleccionar todos los docentes</span>
+                            </label>
+                            <div className="max-h-64 overflow-y-auto space-y-1">
+                                {teachers.map(user => (
+                                    <label key={user.id} className="flex items-center space-x-3 p-2 rounded-md hover:bg-slate-100 cursor-pointer">
+                                        <input 
+                                            type="checkbox"
+                                            checked={selectedUserIds.has(user.id)}
+                                            onChange={() => handleUserToggle(user.id)}
+                                            className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300"
+                                        />
+                                        <img src={user.photo} className="w-8 h-8 rounded-full object-cover" />
+                                        <span>{user.name} {user.lastName}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Students Column */}
+                    <div>
+                        <h4 className="font-bold text-lg mb-2 text-dark-text">Alumnos</h4>
+                         <div className="border rounded-lg p-3">
+                            <label className="flex items-center space-x-2 pb-2 border-b mb-2 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={allStudentsSelected}
+                                    onChange={(e) => handleSelectAll('student', e.target.checked)}
+                                    className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300"
+                                />
+                                <span>Seleccionar todos los alumnos</span>
+                            </label>
+                            <div className="max-h-64 overflow-y-auto space-y-1">
+                                {students.map(user => (
+                                    <label key={user.id} className="flex items-center space-x-3 p-2 rounded-md hover:bg-slate-100 cursor-pointer">
+                                        <input 
+                                            type="checkbox"
+                                            checked={selectedUserIds.has(user.id)}
+                                            onChange={() => handleUserToggle(user.id)}
+                                            className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300"
+                                        />
+                                        <img src={user.photo} className="w-8 h-8 rounded-full object-cover" />
+                                        <span>{user.name} {user.lastName}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
+                    <Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button>
+                    <Button type="submit" disabled={selectedUserIds.size === 0}>
+                        Asignar Encuesta ({selectedUserIds.size} seleccionados)
+                    </Button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
+
 
 // --- Loading & Layout ---
 const LoadingScreen: React.FC = () => ( <div className="flex items-center justify-center h-screen bg-light-bg"><div className="text-center"><h1 className="text-3xl font-bold text-primary">GRUA</h1><p className="text-medium-text mt-2">Gestión de Radiología Universidad de Antofagasta</p><div className="mt-8 border-4 border-slate-200 border-t-primary rounded-full w-12 h-12 animate-spin mx-auto"></div></div></div> );
@@ -1008,10 +1152,10 @@ const MeetingRecordsPage: React.FC<{ meetingRecords: MeetingRecord[], students: 
 const SiteManagementPage: React.FC<{ siteLog: SiteLog[], users: User[], onUpdateUserRole: (userId: string, role: Role) => void }> = ({ siteLog, users, onUpdateUserRole }) => { const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users'); return ( <div className="space-y-8"> <PageTitle title="Gestión del Sitio" /> <Card> <div className="border-b border-slate-200 mb-4"> <nav className="flex space-x-4" aria-label="Tabs"> <button onClick={() => setActiveTab('users')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'users' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-slate-700'}`}> Gestión de Usuarios </button> <button onClick={() => setActiveTab('logs')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'logs' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-slate-700'}`}> Log de Acciones </button> </nav> </div> {activeTab === 'users' && <UserManagementTable users={users} onUpdateUserRole={onUpdateUserRole} />} {activeTab === 'logs' && <SiteLogTable siteLog={siteLog} />} </Card> </div> ); };
 const UserManagementTable: React.FC<{ users: User[], onUpdateUserRole: (userId: string, role: Role) => void }> = ({ users, onUpdateUserRole }) => { return ( <table className="w-full text-left"> <thead> <tr className="border-b"> <th className="p-4 font-semibold text-dark-text">Nombre</th> <th className="p-4 font-semibold text-dark-text">Email</th> <th className="p-4 font-semibold text-dark-text">Tipo</th> <th className="p-4 font-semibold text-dark-text">Rol</th> </tr> </thead> <tbody> {users.map(user => ( <tr key={user.id} className="border-b last:border-0 hover:bg-slate-50"> <td className="p-4 font-medium text-dark-text">{user.name} {user.lastName}</td> <td className="p-4 text-dark-text">{user.email}</td> <td className="p-4 text-dark-text">{user.type}</td> <td className="p-4"> <Select value={user.role} onChange={(e) => onUpdateUserRole(user.id, e.target.value as Role)} > <option value="Administrador">Administrador</option> <option value="Docente">Docente</option> <option value="Alumno">Alumno</option> </Select> </td> </tr> ))} </tbody> </table> ); };
 const SiteLogTable: React.FC<{ siteLog: SiteLog[] }> = ({ siteLog }) => { return ( <table className="w-full text-left"> <thead> <tr className="border-b"> <th className="p-4 font-semibold text-dark-text">Fecha y Hora</th> <th className="p-4 font-semibold text-dark-text">Usuario</th> <th className="p-4 font-semibold text-dark-text">Acción</th> <th className="p-4 font-semibold text-dark-text">Descripción</th> </tr> </thead> <tbody> {[...siteLog].reverse().map(log => ( <tr key={log.id} className="border-b last:border-0 hover:bg-slate-50"> <td className="p-4 text-dark-text">{log.timestamp.toLocaleString('es-CL')}</td> <td className="p-4 text-dark-text">{log.user}</td> <td className="p-4"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${log.action.includes('Crear') ? 'bg-green-100 text-green-800' : log.action.includes('Eliminar') ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{log.action}</span></td> <td className="p-4 text-dark-text">{log.description}</td> </tr> ))} {siteLog.length === 0 && <tr><td colSpan={4} className="text-center p-8 text-medium-text">No hay acciones registradas.</td></tr>} </tbody> </table> ); };
-const StudentFilesPage: React.FC<any> = ({ students, anotaciones, professionalActivities, personalDocuments, gradeReports, subjects, surveys, openModal, permissions, currentUser, selectedFileId }) => { const visibleStudents = permissions.canEdit ? students : students.filter((s: Student) => s.id === currentUser.originalId); return ( <FilesPage title="Expediente de Alumnos" persons={visibleStudents} getAnotaciones={id => anotaciones.filter((a: Anotacion) => a.studentId === id)} getProfessionalActivities={id => professionalActivities.filter((a: ProfessionalActivity) => a.studentId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'student' && doc.ownerId === id)} getGradeReports={id => gradeReports.filter((r: GradeReport) => r.studentId === id)} getSurveys={id => surveys.filter((s: Survey) => s.studentId === id)} subjects={subjects} openModal={openModal} personType="student" permissions={permissions} selectedFileId={selectedFileId} /> );};
-const TeacherFilesPage: React.FC<any> = ({ teachers, teacherProfessionalActivities, personalDocuments, openModal, permissions, selectedFileId }) => ( <FilesPage title="Expediente de Docentes" persons={teachers} getAnotaciones={() => []} getProfessionalActivities={id => teacherProfessionalActivities.filter((a: TeacherProfessionalActivity) => a.teacherId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'teacher' && doc.ownerId === id)} openModal={openModal} personType="teacher" permissions={permissions} selectedFileId={selectedFileId} />);
-const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], subjects: Subject[], teachers: Teacher[] }> = ({ surveys, students, subjects, teachers }) => {
-    const [filters, setFilters] = useState({ subjectId: '', teacherId: '' });
+const StudentFilesPage: React.FC<any> = ({ students, anotaciones, professionalActivities, personalDocuments, gradeReports, subjects, surveys, surveyAssignments, generalSurveys, openModal, permissions, currentUser, selectedFileId }) => { const visibleStudents = permissions.canEdit ? students : students.filter((s: Student) => s.id === currentUser.originalId); return ( <FilesPage title="Expediente de Alumnos" persons={visibleStudents} getAnotaciones={id => anotaciones.filter((a: Anotacion) => a.studentId === id)} getProfessionalActivities={id => professionalActivities.filter((a: ProfessionalActivity) => a.studentId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'student' && doc.ownerId === id)} getGradeReports={id => gradeReports.filter((r: GradeReport) => r.studentId === id)} getRotationSurveys={id => surveys.filter((s: Survey) => s.studentId === id)} getSurveyAssignments={userId => surveyAssignments.filter((s: SurveyAssignment) => s.userId === `student-${userId}`)} generalSurveys={generalSurveys} subjects={subjects} openModal={openModal} personType="student" permissions={permissions} selectedFileId={selectedFileId} /> );};
+const TeacherFilesPage: React.FC<any> = ({ teachers, teacherProfessionalActivities, personalDocuments, surveyAssignments, generalSurveys, openModal, permissions, selectedFileId }) => ( <FilesPage title="Expediente de Docentes" persons={teachers} getAnotaciones={() => []} getProfessionalActivities={id => teacherProfessionalActivities.filter((a: TeacherProfessionalActivity) => a.teacherId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'teacher' && doc.ownerId === id)} getSurveyAssignments={userId => surveyAssignments.filter((s: SurveyAssignment) => s.userId === `teacher-${userId}`)} generalSurveys={generalSurveys} openModal={openModal} personType="teacher" permissions={permissions} selectedFileId={selectedFileId} />);
+const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], subjects: Subject[], teachers: Teacher[], generalSurveys: GeneralSurvey[], permissions: Permissions, openModal: (modal: any) => void, users: User[] }> = ({ surveys, students, subjects, teachers, generalSurveys, permissions, openModal, users }) => {
+    const [filters, setFilters] = useState({ subjectId: '', teacherId: '', studentId: '' });
     const completedSurveys = useMemo(() => surveys.filter(s => s.status === 'Completada'), [surveys]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -1022,7 +1166,8 @@ const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], s
         return completedSurveys.filter(survey => {
             const subjectMatch = !filters.subjectId || survey.subjectId === parseInt(filters.subjectId);
             const teacherMatch = !filters.teacherId || survey.teacherId === parseInt(filters.teacherId);
-            return subjectMatch && teacherMatch;
+            const studentMatch = !filters.studentId || survey.studentId === parseInt(filters.studentId);
+            return subjectMatch && teacherMatch && studentMatch;
         });
     }, [completedSurveys, filters]);
     
@@ -1031,10 +1176,11 @@ const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], s
     const findTeacher = (id?: number) => teachers.find(t => t.id === id);
 
     return (
-        <div>
+        <div className="space-y-8">
             <PageTitle title="Gestión de Encuestas" />
-            <Card className="mb-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+            <Card>
+                <h3 className="text-xl font-bold mb-4">Resultados de Encuestas de Rotación</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-4">
                     <div>
                         <label className="font-semibold text-sm">Filtrar por Asignatura</label>
                         <Select name="subjectId" value={filters.subjectId} onChange={handleFilterChange}>
@@ -1049,14 +1195,19 @@ const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], s
                             {teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}
                         </Select>
                     </div>
-                    <div className="md:col-start-3 flex justify-end">
+                    <div>
+                        <label className="font-semibold text-sm">Filtrar por Alumno</label>
+                        <Select name="studentId" value={filters.studentId} onChange={handleFilterChange}>
+                            <option value="">Todos los Alumnos</option>
+                            {students.map(s => <option key={s.id} value={s.id}>{s.name} {s.lastName}</option>)}
+                        </Select>
+                    </div>
+                    <div className="flex justify-end">
                         <Button onClick={() => exportSurveysToCsv(filteredSurveys, students, subjects, teachers)} className="bg-green-600 hover:bg-green-700 text-white" disabled={filteredSurveys.length === 0}>
                             {Icons.excel}<span>Exportar a Excel</span>
                         </Button>
                     </div>
                 </div>
-            </Card>
-            <Card>
                  <table className="w-full text-left">
                     <thead>
                         <tr className="border-b">
@@ -1085,11 +1236,43 @@ const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], s
                     </tbody>
                 </table>
             </Card>
+
+            <Card>
+                <PageTitle title="Gestión de Encuestas Generales">
+                    {permissions.canCreate && <Button onClick={() => openModal({ type: 'ADD_GENERAL_SURVEY' })}>{Icons.plus}<span>Crear Encuesta</span></Button>}
+                </PageTitle>
+                <table className="w-full text-left">
+                     <thead>
+                        <tr className="border-b">
+                            <th className="p-4 font-semibold text-dark-text">Título</th>
+                            <th className="p-4 font-semibold text-dark-text">Tipo</th>
+                            <th className="p-4 font-semibold text-dark-text">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {generalSurveys.length > 0 ? generalSurveys.map(gs => (
+                            <tr key={gs.id} className="border-b last:border-0 hover:bg-slate-50">
+                                <td className="p-4 font-medium text-dark-text">{gs.title}</td>
+                                <td className="p-4 text-dark-text">{gs.isLink ? 'Enlace Externo' : 'Interna'}</td>
+                                <td className="p-4">
+                                    <div className="flex space-x-2">
+                                        <Button onClick={() => openModal({ type: 'ASSIGN_SURVEY', data: { survey: gs, users }})} className="bg-sky-600 hover:bg-sky-700">{Icons.user_add}<span>Asignar</span></Button>
+                                        {permissions.canEdit && <Button onClick={() => openModal({ type: 'EDIT_GENERAL_SURVEY', data: gs })} className="p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800" title="Editar">{Icons.edit}</Button>}
+                                        {permissions.canDelete && <Button onClick={() => openModal({ type: 'DELETE_GENERAL_SURVEY', data: gs })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button>}
+                                    </div>
+                                </td>
+                            </tr>
+                        )) : (
+                            <tr><td colSpan={3} className="text-center p-8 text-medium-text">No se han creado encuestas generales.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </Card>
         </div>
     );
 };
 
-const FilesPage: React.FC<any> = ({ title, persons, getAnotaciones, getProfessionalActivities, getPersonalDocuments, getGradeReports, getSurveys, subjects, openModal, personType, permissions, selectedFileId }) => {
+const FilesPage: React.FC<any> = ({ title, persons, getAnotaciones, getProfessionalActivities, getPersonalDocuments, getGradeReports, getRotationSurveys, getSurveyAssignments, generalSurveys, subjects, openModal, personType, permissions, selectedFileId }) => {
     const [selectedPerson, setSelectedPerson] = useState<(Student | Teacher) | null>(null);
     
     useEffect(() => {
@@ -1115,14 +1298,14 @@ const FilesPage: React.FC<any> = ({ title, persons, getAnotaciones, getProfessio
     }, [persons]);
 
     return (
-        <div><PageTitle title={title} /><div className="flex space-x-8 items-start"><div className="w-1/4"><Card><ul className="space-y-2 max-h-[70vh] overflow-y-auto">{persons.map((person: Student | Teacher) => ( <li key={person.id}><button onClick={() => setSelectedPerson(person)} className={`w-full text-left px-4 py-2 rounded-lg ${selectedPerson?.id === person.id ? 'bg-primary text-white' : 'hover:bg-slate-100'}`}>{person.name} {person.lastName}</button></li> ))}</ul></Card></div><div className="w-3/4">{selectedPerson ? ( <PersonProfile person={selectedPerson} anotaciones={getAnotaciones(selectedPerson.id)} activities={getProfessionalActivities(selectedPerson.id)} documents={getPersonalDocuments(selectedPerson.id)} gradeReports={getGradeReports ? getGradeReports(selectedPerson.id) : []} surveys={getSurveys ? getSurveys(selectedPerson.id) : []} subjects={subjects} openModal={openModal} personType={personType} permissions={permissions}/> ) : ( <Card><p>Seleccione una persona para ver su expediente.</p></Card> )}</div></div></div>
+        <div><PageTitle title={title} /><div className="flex space-x-8 items-start"><div className="w-1/4"><Card><ul className="space-y-2 max-h-[70vh] overflow-y-auto">{persons.map((person: Student | Teacher) => ( <li key={person.id}><button onClick={() => setSelectedPerson(person)} className={`w-full text-left px-4 py-2 rounded-lg ${selectedPerson?.id === person.id ? 'bg-primary text-white' : 'hover:bg-slate-100'}`}>{person.name} {person.lastName}</button></li> ))}</ul></Card></div><div className="w-3/4">{selectedPerson ? ( <PersonProfile person={selectedPerson} anotaciones={getAnotaciones(selectedPerson.id)} activities={getProfessionalActivities(selectedPerson.id)} documents={getPersonalDocuments(selectedPerson.id)} gradeReports={getGradeReports ? getGradeReports(selectedPerson.id) : []} rotationSurveys={getRotationSurveys ? getRotationSurveys(selectedPerson.id) : []} surveyAssignments={getSurveyAssignments(selectedPerson.id)} generalSurveys={generalSurveys} subjects={subjects} openModal={openModal} personType={personType} permissions={permissions}/> ) : ( <Card><p>Seleccione una persona para ver su expediente.</p></Card> )}</div></div></div>
     );
 };
 
-const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documents, gradeReports, surveys, subjects, openModal, personType, permissions }) => {
+const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documents, gradeReports, rotationSurveys, surveyAssignments, generalSurveys, subjects, openModal, personType, permissions }) => {
     
     const studentTabs = ['Resumen', 'Informes', 'Anotaciones', 'Actividad', 'Documentos', 'Encuestas'];
-    const teacherTabs = ['Resumen', 'Actividad', 'Documentos'];
+    const teacherTabs = ['Resumen', 'Actividad', 'Documentos', 'Encuestas'];
     const availableTabs = personType === 'student' ? studentTabs : teacherTabs;
     
     const [activeTab, setActiveTab] = useState(availableTabs[0]);
@@ -1168,7 +1351,22 @@ const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documen
             case 'Anotaciones': return <Card> <FullAnotacionList anotaciones={anotaciones} /> </Card>;
             case 'Actividad': return <Card> <FullActivityList activities={activities} /> </Card>;
             case 'Documentos': return <Card> <FullDocumentList documents={documents} /> </Card>;
-            case 'Encuestas': return <Card> <FullSurveyList surveys={surveys} subjects={subjects} student={person} openModal={openModal} permissions={permissions}/> </Card>;
+            case 'Encuestas': return (
+                <Card>
+                    <div className="space-y-6">
+                        {personType === 'student' && (
+                            <div>
+                                <h4 className="text-lg font-bold mb-2">Encuestas de Rotación</h4>
+                                <FullRotationSurveyList surveys={rotationSurveys} subjects={subjects} student={person} openModal={openModal} permissions={permissions}/>
+                            </div>
+                        )}
+                        <div>
+                            <h4 className="text-lg font-bold mb-2">Encuestas Generales</h4>
+                            <GeneralSurveyList assignments={surveyAssignments} generalSurveys={generalSurveys} person={person} openModal={openModal} permissions={permissions}/>
+                        </div>
+                    </div>
+                </Card>
+            );
             default: return null;
         }
     };
@@ -1177,19 +1375,20 @@ const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documen
     const FullAnotacionList = ({ anotaciones }: any) => ( <ul className="space-y-4 max-h-96 overflow-y-auto">{anotaciones.map((a: Anotacion) => <li key={a.id} className="border-l-4 pl-4 data-[type=Positiva]:border-green-500 data-[type=Negativa]:border-red-500 data-[type=Observación]:border-yellow-500" data-type={a.type}><p>{a.text}</p><p className="text-xs text-light-text mt-1">{a.timestamp.toLocaleDateString('es-CL')} - {a.type}</p></li>)}</ul> );
     const FullActivityList = ({ activities }: any) => (  <ul className="space-y-2">{activities.map((a: any) => <li key={a.id}>{a.title} ({a.type}) - {new Date(a.date).toLocaleDateString('es-CL')}</li>)}</ul> );
     const FullDocumentList = ({ documents }: any) => ( <ul className="space-y-2">{documents.map((d: PersonalDocument) => <li key={d.id} className="flex items-center justify-between"><a href={d.file.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{d.file.name}</a></li>)}</ul> );
-    const FullSurveyList = ({ surveys, subjects, student, openModal, permissions }: { surveys: Survey[], subjects: Subject[], student: Student, openModal: (modal: any) => void, permissions: Permissions }) => {
+    
+    const FullRotationSurveyList = ({ surveys, subjects, student, openModal, permissions }: { surveys: Survey[], subjects: Subject[], student: Student, openModal: (modal: any) => void, permissions: Permissions }) => {
         const incompleteSurveys = surveys.filter((s: Survey) => s.status === 'Incompleta');
 
         return (
             <div>
                 {incompleteSurveys.length > 0 && permissions.canEdit && (
                     <div className="p-4 mb-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700 rounded-md" role="alert">
-                        <h4 className="font-bold">Encuestas Pendientes</h4>
+                        <h4 className="font-bold">Encuestas de Rotación Pendientes</h4>
                         <p>Tiene {incompleteSurveys.length} encuesta(s) pendiente(s) por completar. Su feedback es muy importante para la mejora continua del programa.</p>
                     </div>
                 )}
                 <ul className="space-y-3">
-                    {surveys.length === 0 && <p className="text-medium-text">No hay encuestas disponibles para este alumno.</p>}
+                    {surveys.length === 0 && <p className="text-medium-text">No hay encuestas de rotación disponibles.</p>}
                     {surveys.map((s: Survey) => {
                         const subject = subjects.find((sub: Subject) => sub.id === s.subjectId);
                         return (
@@ -1208,8 +1407,44 @@ const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documen
             </div>
         );
     };
+
+    const GeneralSurveyList = ({ assignments, generalSurveys, person, openModal, permissions }: { assignments: SurveyAssignment[], generalSurveys: GeneralSurvey[], person: User, openModal: (modal: any) => void, permissions: Permissions }) => {
+        const incompleteAssignments = assignments.filter((a: SurveyAssignment) => a.status === 'Incompleta');
+
+        return (
+            <div>
+                {incompleteAssignments.length > 0 && permissions.canEdit && (
+                    <div className="p-4 mb-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700 rounded-md" role="alert">
+                        <h4 className="font-bold">Encuestas Generales Pendientes</h4>
+                        <p>Tiene {incompleteAssignments.length} encuesta(s) general(es) pendiente(s) por completar.</p>
+                    </div>
+                )}
+                 <ul className="space-y-3">
+                    {assignments.length === 0 && <p className="text-medium-text">No hay encuestas generales asignadas.</p>}
+                    {assignments.map((a: SurveyAssignment) => {
+                        const survey = generalSurveys.find(gs => gs.id === a.surveyId);
+                        return (
+                             <li key={a.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <div className="font-medium">{survey?.title || 'Encuesta desconocida'}</div>
+                                <div>
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full mr-4 ${a.status === 'Completada' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{a.status}</span>
+                                    {a.status === 'Incompleta' && permissions.canEdit && (
+                                        <Button onClick={() => survey?.isLink ? window.open(survey.link, '_blank') : alert('Completar encuesta interna (WIP)')} className="bg-primary text-white">Responder</Button>
+                                    )}
+                                </div>
+                            </li>
+                        )
+                    })}
+                </ul>
+            </div>
+        )
+    };
     
-    const incompleteSurveysCount = useMemo(() => personType === 'student' ? surveys.filter((s: Survey) => s.status === 'Incompleta').length : 0, [surveys, personType]);
+    const incompleteSurveysCount = useMemo(() => {
+        const rotation = personType === 'student' ? rotationSurveys.filter((s: Survey) => s.status === 'Incompleta').length : 0;
+        const general = surveyAssignments.filter((a: SurveyAssignment) => a.status === 'Incompleta').length;
+        return rotation + general;
+    }, [rotationSurveys, surveyAssignments, personType]);
 
     return (
         <div className="space-y-6">
@@ -1263,6 +1498,8 @@ const App: React.FC = () => {
     const [siteLog, setSiteLog] = useState<SiteLog[]>(initialSiteLog);
     const [quickLinks, setQuickLinks] = useState<QuickLink[]>(initialQuickLinks);
     const [surveys, setSurveys] = useState<Survey[]>(initialSurveys);
+    const [generalSurveys, setGeneralSurveys] = useState<GeneralSurvey[]>(initialGeneralSurveys);
+    const [surveyAssignments, setSurveyAssignments] = useState<SurveyAssignment[]>(initialSurveyAssignments);
     const [users, setUsers] = useState<User[]>(initialUsers);
     
     const [currentView, setCurrentView] = useState<View>('DASHBOARD');
@@ -1321,10 +1558,37 @@ const App: React.FC = () => {
     const handleSaveQuickLink = (link: QuickLink) => { const isNew = link.id === 0; setQuickLinks(prev => isNew ? [...prev, { ...link, id: Date.now() }] : prev.map(l => l.id === link.id ? link : l)); setModal(null); logAction(isNew ? 'Crear Enlace Rápido' : 'Editar Enlace Rápido', link.label); };
     const handleDeleteQuickLink = (link: QuickLink) => { setQuickLinks(prev => prev.filter(l => l.id !== link.id)); setModal(null); logAction('Eliminar Enlace Rápido', link.label); };
     const handleSaveSurvey = (survey: Survey, answers: SurveyAnswer[]) => { setSurveys(prev => prev.map(s => s.id === survey.id ? { ...s, status: 'Completada', completionDate: new Date().toISOString(), answers } : s)); setModal(null); const studentName = students.find(s => s.id === survey.studentId)?.name; const subjectName = subjects.find(s => s.id === survey.subjectId)?.name; logAction('Completar Encuesta', `Alumno: ${studentName}, Asignatura: ${subjectName}`); };
-    const handleUpdateUserRole = (userId: string, role: Role) => { setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u)); logAction('Actualizar Rol de Usuario', `Usuario ID: ${userId}, Nuevo Rol: ${role}`); };
-    const handleUserChange = (userId: string) => { const newCurrentUser = users.find(u => u.id === userId); if (newCurrentUser) { setCurrentUser(newCurrentUser); if (!permissions.views.includes(currentView)) { setCurrentView('DASHBOARD'); } } };
     
-    const handleGlobalSearchSelect = (item: Student | Teacher | Subject, type: 'student' | 'teacher' | 'subject') => {
+    const handleSaveGeneralSurvey = (survey: GeneralSurvey) => {
+        const isNew = !survey.id;
+        let savedSurvey = survey;
+
+        setGeneralSurveys(prev => {
+            if (isNew) {
+                savedSurvey = { ...survey, id: Date.now() };
+                return [...prev, savedSurvey];
+            } else {
+                savedSurvey = survey;
+                return prev.map(gs => gs.id === survey.id ? survey : gs);
+            }
+        });
+        
+        logAction(isNew ? 'Crear Encuesta General' : 'Editar Encuesta General', survey.title);
+
+        if (isNew) {
+            // After creating a new survey, immediately open the assignment modal
+            setModal({ type: 'ASSIGN_SURVEY', data: { survey: savedSurvey, users } });
+        } else {
+            // If editing, just close the modal
+            setModal(null);
+        }
+    };
+
+    const handleDeleteGeneralSurvey = (survey: GeneralSurvey) => { setGeneralSurveys(prev => prev.filter(gs => gs.id !== survey.id)); setModal(null); logAction('Eliminar Encuesta General', survey.title); };
+    const handleAssignSurvey = (surveyId: number, userIds: string[]) => { const newAssignments: SurveyAssignment[] = userIds.map(userId => ({ id: Date.now() + Math.random(), surveyId, userId, status: 'Incompleta', answers: [] })); setSurveyAssignments(prev => [...prev, ...newAssignments]); setModal(null); logAction('Asignar Encuesta', `Encuesta ID ${surveyId} a ${userIds.length} usuarios.`); };
+    const handleUpdateUserRole = (userId: string, role: Role) => { setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u)); logAction('Actualizar Rol de Usuario', `Usuario ID: ${userId}, Nuevo Rol: ${role}`); };
+    const handleUserChange = (userId: string) => { setCurrentUser(users.find(u => u.id === userId) || null); };
+    const handleSearchResultSelect = (item: any, type: string) => {
         if (type === 'student') {
             setSelectedFileId(item.id);
             setCurrentView('STUDENT_FILES');
@@ -1332,64 +1596,134 @@ const App: React.FC = () => {
             setSelectedFileId(item.id);
             setCurrentView('TEACHER_FILES');
         } else if (type === 'subject') {
-            setCurrentView('SUBJECTS');
+            // How to handle subject selection? Maybe go to grades page and filter by it?
+            // For now, let's just log it.
+            console.log("Selected subject:", item);
+        }
+    };
+
+    const renderModal = () => {
+        if (!modal) return null;
+
+        switch (modal.type) {
+            case 'ADD_STUDENT':
+                return <StudentFormModal onSave={handleSaveStudent} onClose={() => setModal(null)} />;
+            case 'EDIT_STUDENT':
+                return <StudentFormModal student={modal.data} onSave={handleSaveStudent} onClose={() => setModal(null)} />;
+            case 'DELETE_STUDENT':
+                return <ConfirmDeleteModal onConfirm={() => handleDeleteStudent(modal.data)} onCancel={() => setModal(null)} title="Eliminar Alumno" message={`¿Está seguro que desea eliminar a ${modal.data.name} ${modal.data.lastName}? Esta acción no se puede deshacer.`} />;
+            case 'ADD_TEACHER':
+                return <TeacherFormModal onSave={handleSaveTeacher} onClose={() => setModal(null)} />;
+            case 'EDIT_TEACHER':
+                return <TeacherFormModal teacher={modal.data} onSave={handleSaveTeacher} onClose={() => setModal(null)} />;
+            case 'DELETE_TEACHER':
+                return <ConfirmDeleteModal onConfirm={() => handleDeleteTeacher(modal.data)} onCancel={() => setModal(null)} title="Eliminar Docente" message={`¿Está seguro que desea eliminar a ${modal.data.name} ${modal.data.lastName}?`} />;
+            case 'ADD_SUBJECT':
+                return <SubjectFormModal teachers={teachers} onSave={handleSaveSubject} onClose={() => setModal(null)} />;
+            case 'EDIT_SUBJECT':
+                return <SubjectFormModal subject={modal.data} teachers={teachers} onSave={handleSaveSubject} onClose={() => setModal(null)} />;
+            case 'DELETE_SUBJECT':
+                return <ConfirmDeleteModal onConfirm={() => handleDeleteSubject(modal.data)} onCancel={() => setModal(null)} title="Eliminar Asignatura" message={`¿Está seguro que desea eliminar la asignatura ${modal.data.name}?`} />;
+            case 'ADD_GRADE':
+                return <AddGradeModal students={students} subjects={subjects} onSave={handleAddGrade} onClose={() => setModal(null)} />;
+            case 'DELETE_GRADE':
+                 return <ConfirmDeleteModal onConfirm={() => handleDeleteGrade(modal.data)} onCancel={() => setModal(null)} title="Eliminar Calificación" message={`¿Está seguro que desea eliminar esta entrada de calificación?`} />;
+            case 'EVALUATE_GRADE':
+                return <EvaluationModal grade={modal.data.grade} student={modal.data.student} subject={modal.data.subject} onSave={handleGenerateReport} onClose={() => setModal(null)} />;
+            case 'VIEW_REPORT':
+                return <ReportViewerModal report={modal.data.report} student={modal.data.student} subject={modal.data.subject} onAccept={handleAcceptReport} onClose={() => setModal(null)} />;
+            case 'ADD_ANOTACION':
+                return <AnotacionFormModal studentId={modal.data.studentId} autorId={currentUser!.originalId} onSave={handleSaveAnotacion} onClose={() => setModal(null)} />;
+            case 'ADD_ACTIVITY':
+                return <ProfessionalActivityFormModal personId={modal.data.personId} personType={modal.data.personType} onSave={handleSaveProfessionalActivity} onClose={() => setModal(null)} />;
+            case 'ADD_DOCUMENT':
+                return <PersonalDocumentFormModal ownerId={modal.data.personId} ownerType={modal.data.personType} onSave={handleSavePersonalDocument} onClose={() => setModal(null)} />;
+            case 'ADD_EVENT':
+                return <CalendarEventFormModal onSave={handleSaveCalendarEvent} onClose={() => setModal(null)} />;
+            case 'EDIT_EVENT':
+                 return <CalendarEventFormModal event={modal.data} onSave={handleSaveCalendarEvent} onClose={() => setModal(null)} />;
+            case 'DELETE_CALENDAR_EVENT':
+                return <ConfirmDeleteModal onConfirm={() => handleDeleteCalendarEvent(modal.data)} onCancel={() => setModal(null)} title="Eliminar Evento" message={`¿Está seguro que desea eliminar el evento "${modal.data.title}"?`} />;
+            case 'ADD_NEWS':
+                return <NewsArticleFormModal onSave={handleSaveNewsArticle} onClose={() => setModal(null)} />;
+            case 'EDIT_NEWS':
+                return <NewsArticleFormModal article={modal.data} onSave={handleSaveNewsArticle} onClose={() => setModal(null)} />;
+            case 'DELETE_NEWS':
+                return <ConfirmDeleteModal onConfirm={() => handleDeleteNewsArticle(modal.data)} onCancel={() => setModal(null)} title="Eliminar Noticia" message={`¿Está seguro que desea eliminar la noticia "${modal.data.title}"?`} />;
+            case 'ADD_MEETING':
+                return <MeetingRecordFormModal students={students} teachers={teachers} onSave={handleSaveMeetingRecord} onClose={() => setModal(null)} />;
+            case 'EDIT_MEETING':
+                return <MeetingRecordFormModal record={modal.data} students={students} teachers={teachers} onSave={handleSaveMeetingRecord} onClose={() => setModal(null)} />;
+            case 'DELETE_MEETING':
+                 return <ConfirmDeleteModal onConfirm={() => handleDeleteMeetingRecord(modal.data)} onCancel={() => setModal(null)} title="Eliminar Reunión" message={`¿Está seguro que desea eliminar el registro de la reunión "${modal.data.title}"?`} />;
+            case 'ADD_QUICK_LINK':
+                return <QuickLinkFormModal onSave={handleSaveQuickLink} onClose={() => setModal(null)} />;
+            case 'EDIT_QUICK_LINK':
+                return <QuickLinkFormModal link={modal.data} onSave={handleSaveQuickLink} onClose={() => setModal(null)} />;
+            case 'DELETE_QUICK_LINK':
+                return <ConfirmDeleteModal onConfirm={() => handleDeleteQuickLink(modal.data)} onCancel={() => setModal(null)} title="Eliminar Enlace Rápido" message={`¿Está seguro que desea eliminar el enlace "${modal.data.label}"?`} />;
+            case 'COMPLETE_SURVEY':
+                return <SurveyFormModal survey={modal.data.survey} student={modal.data.student} subject={modal.data.subject} onSave={handleSaveSurvey} onClose={() => setModal(null)} />;
+            case 'ADD_GENERAL_SURVEY':
+                return <GeneralSurveyFormModal onSave={handleSaveGeneralSurvey} onClose={() => setModal(null)} />;
+            case 'EDIT_GENERAL_SURVEY':
+                return <GeneralSurveyFormModal survey={modal.data} onSave={handleSaveGeneralSurvey} onClose={() => setModal(null)} />;
+            case 'DELETE_GENERAL_SURVEY':
+                 return <ConfirmDeleteModal onConfirm={() => handleDeleteGeneralSurvey(modal.data)} onCancel={() => setModal(null)} title="Eliminar Encuesta General" message={`¿Está seguro que desea eliminar la encuesta "${modal.data.title}"?`} />;
+            case 'ASSIGN_SURVEY':
+                 return <AssignSurveyModal survey={modal.data.survey} users={users} onSave={handleAssignSurvey} onClose={() => setModal(null)} />;
+            default:
+                return null;
         }
     };
     
-    useEffect(() => {
-        if (currentUser && !permissions.views.includes(currentView)) {
-            setCurrentView('DASHBOARD');
-        }
-    }, [currentUser, permissions, currentView]);
+    if (isLoading) {
+        return <LoadingScreen />;
+    }
 
-
-    // FIX: Changed `onUpdateUserRole` to `onUpdateUserRole: handleUpdateUserRole` because `onUpdateUserRole` is not defined.
-    const dataContext = { students, teachers, subjects, grades, activityLog, anotaciones, calendarEvents, news, gradeReports, officialDocuments, meetingRecords, professionalActivities, teacherProfessionalActivities, personalDocuments, siteLog, quickLinks, surveys, users, openModal: setModal, setCurrentView: navigateTo, permissions, currentUser, onUpdateUserRole: handleUpdateUserRole, selectedFileId };
+    if (!currentUser) {
+        return <div>Error: No user found.</div>;
+    }
     
-    if (isLoading || !currentUser) return <LoadingScreen />;
-
+    const viewData = {
+        students,
+        teachers,
+        subjects,
+        grades,
+        activityLog,
+        anotaciones,
+        calendarEvents,
+        news,
+        gradeReports,
+        officialDocuments,
+        meetingRecords,
+        professionalActivities,
+        teacherProfessionalActivities,
+        personalDocuments,
+        siteLog,
+        quickLinks,
+        surveys,
+        generalSurveys,
+        surveyAssignments,
+        users,
+        openModal: (modalData: any) => setModal(modalData),
+        permissions,
+        setCurrentView: navigateTo,
+        currentUser,
+        selectedFileId,
+        onUpdateUserRole: handleUpdateUserRole,
+    };
+    
     return (
         <div className="flex h-screen bg-light-bg text-dark-text">
-            <Sidebar currentView={currentView} setCurrentView={navigateTo} permissions={permissions} />
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <Header user={currentUser} allUsers={users} onUserChange={handleUserChange} students={students} teachers={teachers} subjects={subjects} onSearchResultSelect={handleGlobalSearchSelect}/>
-                <main className="flex-1 overflow-x-hidden overflow-y-auto p-8">
-                    <RenderView view={currentView} data={dataContext} />
+            <Sidebar currentView={currentView} setCurrentView={navigateTo} permissions={permissions}/>
+            <div className="flex-1 flex flex-col">
+                <Header user={currentUser} allUsers={users} onUserChange={handleUserChange} students={students} teachers={teachers} subjects={subjects} onSearchResultSelect={handleSearchResultSelect} />
+                <main className="flex-1 p-8 overflow-y-auto">
+                    <RenderView view={currentView} data={viewData} />
                 </main>
             </div>
-            {modal?.type.startsWith('DELETE_') && <ConfirmDeleteModal title={`Eliminar ${modal.type.split('_')[1].toLowerCase()}`} message="¿Está seguro que desea eliminar este registro? Esta acción no se puede deshacer." onCancel={() => setModal(null)} onConfirm={() => {
-                switch(modal.type) {
-                    case 'DELETE_STUDENT': handleDeleteStudent(modal.data); break;
-                    case 'DELETE_TEACHER': handleDeleteTeacher(modal.data); break;
-                    case 'DELETE_SUBJECT': handleDeleteSubject(modal.data); break;
-                    case 'DELETE_GRADE': handleDeleteGrade(modal.data); break;
-                    case 'DELETE_EVENT': handleDeleteCalendarEvent(modal.data); break;
-                    case 'DELETE_NEWS': handleDeleteNewsArticle(modal.data); break;
-                    case 'DELETE_MEETING': handleDeleteMeetingRecord(modal.data); break;
-                    case 'DELETE_QUICK_LINK': handleDeleteQuickLink(modal.data); break;
-                }
-            }} />}
-            {modal?.type === 'ADD_STUDENT' && <StudentFormModal onSave={handleSaveStudent} onClose={() => setModal(null)} />}
-            {modal?.type === 'EDIT_STUDENT' && <StudentFormModal student={modal.data} onSave={handleSaveStudent} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_TEACHER' && <TeacherFormModal onSave={handleSaveTeacher} onClose={() => setModal(null)} />}
-            {modal?.type === 'EDIT_TEACHER' && <TeacherFormModal teacher={modal.data} onSave={handleSaveTeacher} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_SUBJECT' && <SubjectFormModal teachers={teachers} onSave={handleSaveSubject} onClose={() => setModal(null)} />}
-            {modal?.type === 'EDIT_SUBJECT' && <SubjectFormModal subject={modal.data} teachers={teachers} onSave={handleSaveSubject} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_GRADE' && <AddGradeModal students={students} subjects={subjects} onSave={handleAddGrade} onClose={() => setModal(null)} />}
-            {modal?.type === 'EVALUATE_GRADE' && <EvaluationModal grade={modal.data.grade} student={modal.data.student} subject={modal.data.subject} onSave={handleGenerateReport} onClose={() => setModal(null)} />}
-            {modal?.type === 'VIEW_REPORT' && <ReportViewerModal report={modal.data.report} student={modal.data.student} subject={modal.data.subject} onAccept={handleAcceptReport} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_ANOTACION' && <AnotacionFormModal studentId={modal.data.studentId} autorId={teachers[0].id} onSave={handleSaveAnotacion} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_ACTIVITY' && <ProfessionalActivityFormModal personId={modal.data.personId} personType={modal.data.personType} onSave={handleSaveProfessionalActivity} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_DOCUMENT' && <PersonalDocumentFormModal ownerId={modal.data.personId} ownerType={modal.data.personType} onSave={handleSavePersonalDocument} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_EVENT' && <CalendarEventFormModal onSave={handleSaveCalendarEvent} onClose={() => setModal(null)} />}
-            {modal?.type === 'EDIT_EVENT' && <CalendarEventFormModal event={modal.data} onSave={handleSaveCalendarEvent} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_NEWS' && <NewsArticleFormModal onSave={handleSaveNewsArticle} onClose={() => setModal(null)} />}
-            {modal?.type === 'EDIT_NEWS' && <NewsArticleFormModal article={modal.data} onSave={handleSaveNewsArticle} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_MEETING' && <MeetingRecordFormModal students={students} teachers={teachers} onSave={handleSaveMeetingRecord} onClose={() => setModal(null)} />}
-            {modal?.type === 'EDIT_MEETING' && <MeetingRecordFormModal record={modal.data} students={students} teachers={teachers} onSave={handleSaveMeetingRecord} onClose={() => setModal(null)} />}
-            {modal?.type === 'ADD_QUICK_LINK' && <QuickLinkFormModal onSave={handleSaveQuickLink} onClose={() => setModal(null)} />}
-            {modal?.type === 'EDIT_QUICK_LINK' && <QuickLinkFormModal link={modal.data} onSave={handleSaveQuickLink} onClose={() => setModal(null)} />}
-            {modal?.type === 'COMPLETE_SURVEY' && <SurveyFormModal survey={modal.data.survey} student={modal.data.student} subject={modal.data.subject} onSave={handleSaveSurvey} onClose={() => setModal(null)} />}
+            {modal && renderModal()}
         </div>
     );
 };

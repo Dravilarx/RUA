@@ -275,6 +275,7 @@ export interface SurveyAnswer {
   answer: string;
 }
 
+// This is the original survey type, tied to a grade/rotation
 export interface Survey {
   id: number;
   gradeId: number;
@@ -285,6 +286,25 @@ export interface Survey {
   completionDate?: string;
   answers: SurveyAnswer[];
 }
+
+// New generic survey types
+export interface GeneralSurvey {
+  id: number;
+  title: string;
+  description: string;
+  isLink: boolean;
+  link?: string;
+}
+
+export interface SurveyAssignment {
+  id: number;
+  surveyId: number; // links to GeneralSurvey.id
+  userId: string; // e.g., 'student-1' or 'teacher-1'
+  status: 'Incompleta' | 'Completada';
+  completionDate?: string;
+  answers: SurveyAnswer[];
+}
+
 
 // --- User Management ---
 export type Role = 'Administrador' | 'Docente' | 'Alumno';
