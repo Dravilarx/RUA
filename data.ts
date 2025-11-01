@@ -1,4 +1,4 @@
-import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, SiteLog, QuickLink, Survey } from './types';
+import { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, SiteLog, QuickLink, Survey, User } from './types';
 
 // Placeholder base64 images for demonstration
 const placeholderUserLight = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2E1YjRjYyIgc3Ryb2tlLXdpZHRoPSIxIiBzdHJva2UtbGluZWNhcD0icm9ybmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik01IDE3djItLTJhMiAyIDAgMCAwLTIgMmgyYTQgNCAwIDAgMCA0LTRIOWE0IDQgMCAwIDAgNC00aC0yYTIgMiAwIDAgMC0yIDJ6Ii8+PHBhdGggZD0iTTUgN2EyIDIgMCAwIDEgMi0yaDJhMiAyIDAgMCAxIDIgMnYyYTIgMiAwIDAgMS0yIDJoLTJhMiAyIDAgMCAxLTItMnoiLz48L3N2Zz4=';
@@ -148,7 +148,7 @@ export const initialNewsArticles: NewsArticle[] = [
     content: 'El próximo mes se llevará a cabo el Seminario Internacional de Física Médica en nuestro auditorio principal. Contaremos con la presencia de expositores de renombre mundial que discutirán los últimos avances en dosimetría, protección radiológica y control de calidad en imagenología. Las inscripciones ya están abiertas para toda la comunidad universitaria.', 
     author: 'Dr. Ricardo Pérez', 
     date: new Date(Date.now() - 86400000 * 10),
-    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=2070&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   {
     id: 4,
@@ -394,3 +394,33 @@ export const surveyQuestions = [
 ];
 
 export const initialSurveys: Survey[] = [];
+
+const studentUsers: User[] = initialStudents.map(s => ({
+    id: `student-${s.id}`,
+    name: s.name,
+    lastName: s.lastName,
+    email: s.email,
+    type: 'Alumno',
+    originalId: s.id,
+    role: 'Alumno',
+    photo: s.photo,
+}));
+
+const teacherUsers: User[] = initialTeachers.map(t => ({
+    id: `teacher-${t.id}`,
+    name: t.name,
+    lastName: t.lastName,
+    email: t.email,
+    type: 'Docente',
+    originalId: t.id,
+    role: 'Docente',
+    photo: t.photo,
+}));
+
+// Designate the first teacher as Administrator by default
+if (teacherUsers.length > 0) {
+    teacherUsers[0].role = 'Administrador';
+}
+
+
+export const initialUsers: User[] = [...studentUsers, ...teacherUsers];

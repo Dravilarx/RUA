@@ -285,3 +285,17 @@ export interface Survey {
   completionDate?: string;
   answers: SurveyAnswer[];
 }
+
+// --- User Management ---
+export type Role = 'Administrador' | 'Docente' | 'Alumno';
+
+export interface User {
+  id: string; // e.g., 'student-1' or 'teacher-1'
+  name: string;
+  lastName: string;
+  email: string;
+  type: 'Alumno' | 'Docente';
+  originalId: number;
+  role: Role;
+  photo?: string;
+}
