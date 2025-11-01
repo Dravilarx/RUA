@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports, initialOfficialDocuments, initialMeetingRecords, initialProfessionalActivities, initialTeacherProfessionalActivities, initialPersonalDocuments, initialSiteLog, initialQuickLinks, initialSurveys, surveyQuestions, initialUsers } from './data';
 import type { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, ActivityType, TeacherActivityType, SiteLog, QuickLink, Survey, SurveyAnswer, User, Role } from './types';
@@ -292,17 +291,33 @@ const calculateFinalGrade = (grade: Grade): string => {
     return finalGrade.toFixed(1);
 };
 
+const validateField = (name: string, value: string): string => {
+    if (!value) return 'Este campo es requerido.';
+    switch (name) {
+        case 'rut':
+            if (!/^\d{1,2}\.\d{3}\.\d{3}-[\dKk]$/.test(value)) return 'Formato de RUT inválido. Ej: 12.345.678-9';
+            break;
+        case 'email':
+            if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)) return 'Formato de correo electrónico inválido.';
+            break;
+        case 'phone':
+            if (!/^\+569\d{8}$/.test(value)) return 'Formato de teléfono inválido. Ej: +56912345678';
+            break;
+    }
+    return '';
+};
+
 
 // --- Helper Components & Icons ---
 const Icon = ({ path, className = 'w-6 h-6' }: { path: string; className?: string }) => ( <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d={path} /></svg> );
-const Icons = { dashboard: <Icon path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />, students: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, teachers: <Icon path="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />, subjects: <Icon path="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />, grades: <Icon path="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />, studentFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, teacherFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, calendar: <Icon path="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />, news: <Icon path="M4 5v14h16V5H4zm2 12H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm12 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z" />, documents: <Icon path="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />, meetings: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, site_management: <Icon path="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49.42l.38-2.65c.61-.25 1.17-.59-1.69.98l2.49 1c.23.09.49 0 .61.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />, surveys: <Icon path="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2V9h2v3zm4-2h-2V7h2v3z" />, logout: <Icon path="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />, plus: <Icon path="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />, edit: <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />, delete: <Icon path="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />, download: <Icon path="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />, view: <Icon path="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />, pdf: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm-2.5.5h1v-1h-1v1zm7 4.5h-3V9h1.5v3H16v-3h1.5v6zm-7-4.5H13v-1H9.5v1z" className='w-5 h-5'/>, excel: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9.5 14.5h-2l-1-2.25L5.5 14.5h-2L6 11l-2.5-3.5h2l1 2.25L7.5 7.5h2L7 11l2.5 3.5zm7 0h-1.5v-1.5h-3V16H10V7.5h1.5v1.5h3V7.5H16v7z" className='w-5 h-5'/>, link: <Icon path="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" /> };
+const Icons = { dashboard: <Icon path="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />, students: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, teachers: <Icon path="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />, subjects: <Icon path="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />, grades: <Icon path="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />, studentFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, teacherFile: <Icon path="M3 5v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2zm12 4c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3zm-9 8c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1H6v-1z" />, calendar: <Icon path="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />, news: <Icon path="M4 5v14h16V5H4zm2 12H6v-2h2v2zm0-4H6v-2h2v2zm0-4H6V7h2v2zm12 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm-4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z" />, documents: <Icon path="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />, meetings: <Icon path="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />, site_management: <Icon path="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49.42l.38-2.65c.61-.25 1.17-.59-1.69.98l2.49 1c.23.09.49 0 .61.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />, surveys: <Icon path="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-2 14h-2v-2h2v2zm0-4h-2V9h2v3zm4-2h-2V7h2v3z" />, logout: <Icon path="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />, plus: <Icon path="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />, edit: <Icon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />, delete: <Icon path="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />, download: <Icon path="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />, view: <Icon path="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />, pdf: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm-2.5.5h1v-1h-1v1zm7 4.5h-3V9h1.5v3H16v-3h1.5v6zm-7-4.5H13v-1H9.5v1z" className='w-5 h-5'/>, excel: <Icon path="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9.5 14.5h-2l-1-2.25L5.5 14.5h-2L6 11l-2.5-3.5h2l1 2.25L7.5 7.5h2L7 11l2.5 3.5zm7 0h-1.5v-1.5h-3V16H10V7.5h1.5v1.5h3V7.5H16v7z" className='w-5 h-5'/>, link: <Icon path="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />, search: <Icon path="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /> };
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => ( <div className={`bg-white rounded-lg shadow p-6 ${className}`}>{children}</div> );
 const Button: React.FC<{ children: React.ReactNode; onClick?: () => void; className?: string; type?: 'button' | 'submit' | 'reset'; disabled?: boolean; [key: string]: any; }> = ({ children, onClick, className = 'bg-primary hover:bg-primary-hover text-white', type = 'button', disabled = false, ...props }) => ( <button type={type} onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded-md font-semibold transition-colors duration-200 flex items-center justify-center space-x-2 disabled:bg-slate-300 disabled:cursor-not-allowed ${className}`} {...props}>{children}</button> );
 const Modal: React.FC<{ children: React.ReactNode; title: string; onClose: () => void; size?: 'lg' | '2xl' | '4xl' | '6xl' }> = ({ children, title, onClose, size = 'lg' }) => { const sizeClasses = { lg: 'max-w-lg', '2xl': 'max-w-2xl', '4xl': 'max-w-4xl', '6xl': 'max-w-6xl' }; return ( <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-start pt-10 overflow-y-auto" onClick={onClose}><div className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} mx-4 mb-10`} onClick={e => e.stopPropagation()}><div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-lg z-10"><h3 className="text-xl font-bold text-dark-text">{title}</h3><button onClick={onClose} className="text-3xl font-light text-slate-400 hover:text-slate-700 leading-none">&times;</button></div><div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div></div></div> ); };
-const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => ( <input {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500" /> );
+const Input = (props: React.InputHTMLAttributes<HTMLInputElement> & { hasError?: boolean }) => { const { hasError, ...rest } = props; return <input {...rest} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500 ${hasError ? 'border-red-500 focus:ring-red-500' : 'border-slate-300 focus:ring-primary'}`} />; };
 const Select = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => ( <select {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500" /> );
 const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => ( <textarea {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500" /> );
-const FormRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => ( <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center"><label className="font-semibold">{label}</label><div className="md:col-span-2">{children}</div></div> );
+const FormRow: React.FC<{ label: string; children: React.ReactNode; error?: string }> = ({ label, children, error }) => ( <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-start"><label className="font-semibold pt-2">{label}</label><div className="md:col-span-2">{children}{error && <p className="text-red-500 text-xs mt-1">{error}</p>}</div></div> );
 const competencyLabels = [ "Juicio Clínico y Razonamiento", "Conocimientos y Habilidades Técnicas", "Profesionalismo y Ética", "Comunicación y Habilidades Interpersonales", "Trabajo en Equipo y Colaboración", "Aprendizaje Continuo y Autoevaluación", "Gestión y Seguridad del Paciente", "Manejo de la Información" ];
 const competencyScale = { 1: "Nunca", 2: "Rara Vez", 3: "Pocas Veces", 4: "A Veces", 5: "Frecuentemente", 6: "Generalmente", 7: "Casi Siempre" };
 type View = 'DASHBOARD' | 'STUDENTS' | 'TEACHERS' | 'SUBJECTS' | 'GRADES' | 'STUDENT_FILES' | 'TEACHER_FILES' | 'CALENDAR' | 'NEWS' | 'DOCUMENTS' | 'MEETINGS' | 'SITE_MANAGEMENT' | 'SURVEYS';
@@ -323,21 +338,43 @@ const ConfirmDeleteModal = ({ onConfirm, onCancel, title, message }: { onConfirm
 
 const StudentFormModal = ({ student, onSave, onClose }: { student?: Student, onSave: (student: Student) => void, onClose: () => void }) => {
     const [formData, setFormData] = useState<Student>(student || { id: 0, name: '', lastName: '', rut: '', email: '', admissionDate: '', phone: '', undergradUniversity: '', nationality: '', birthDate: '', photo: '' });
+    const [errors, setErrors] = useState<Partial<Record<keyof Student, string>>>({});
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
     const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.[0]) { const base64 = await fileToBase64(e.target.files[0]); setFormData({ ...formData, photo: base64 }); } };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const newErrors: Partial<Record<keyof Student, string>> = {};
+        if (!formData.name) newErrors.name = 'El nombre es requerido.';
+        if (!formData.lastName) newErrors.lastName = 'El apellido es requerido.';
+        const rutError = validateField('rut', formData.rut);
+        if (rutError) newErrors.rut = rutError;
+        const emailError = validateField('email', formData.email);
+        if (emailError) newErrors.email = emailError;
+        const phoneError = validateField('phone', formData.phone);
+        if (phoneError) newErrors.phone = phoneError;
+        if (!formData.birthDate) newErrors.birthDate = 'La fecha de nacimiento es requerida.';
+        if (!formData.admissionDate) newErrors.admissionDate = 'La fecha de admisión es requerida.';
+        if (!formData.undergradUniversity) newErrors.undergradUniversity = 'La universidad de pregrado es requerida.';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+        onSave(formData);
+    };
     
     return (<Modal title={student ? 'Editar Alumno' : 'Agregar Alumno'} onClose={onClose} size="2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
             <FormRow label="Foto"><div className="flex items-center space-x-4"><img src={formData.photo} alt="Perfil" className="w-16 h-16 rounded-full object-cover bg-slate-200" /><Input type="file" accept="image/*" onChange={handlePhotoChange} /></div></FormRow>
-            <FormRow label="Nombres"><Input name="name" value={formData.name} onChange={handleChange} required /></FormRow>
-            <FormRow label="Apellidos"><Input name="lastName" value={formData.lastName} onChange={handleChange} required /></FormRow>
-            <FormRow label="RUT"><Input name="rut" value={formData.rut} onChange={handleChange} required /></FormRow>
-            <FormRow label="Email"><Input type="email" name="email" value={formData.email} onChange={handleChange} required /></FormRow>
-            <FormRow label="Teléfono"><Input type="tel" name="phone" value={formData.phone} onChange={handleChange} required /></FormRow>
-            <FormRow label="Fecha de Nacimiento"><Input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required /></FormRow>
-            <FormRow label="Fecha de Admisión"><Input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleChange} required /></FormRow>
-            <FormRow label="U. de Pregrado"><Input name="undergradUniversity" value={formData.undergradUniversity} onChange={handleChange} required /></FormRow>
+            <FormRow label="Nombres" error={errors.name}><Input name="name" value={formData.name} onChange={handleChange} required hasError={!!errors.name} /></FormRow>
+            <FormRow label="Apellidos" error={errors.lastName}><Input name="lastName" value={formData.lastName} onChange={handleChange} required hasError={!!errors.lastName}/></FormRow>
+            <FormRow label="RUT" error={errors.rut}><Input name="rut" value={formData.rut} onChange={handleChange} required placeholder="12.345.678-9" hasError={!!errors.rut}/></FormRow>
+            <FormRow label="Email" error={errors.email}><Input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="ejemplo@email.com" hasError={!!errors.email}/></FormRow>
+            <FormRow label="Teléfono" error={errors.phone}><Input type="tel" name="phone" value={formData.phone} onChange={handleChange} required placeholder="+56912345678" hasError={!!errors.phone}/></FormRow>
+            <FormRow label="Fecha de Nacimiento" error={errors.birthDate}><Input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required hasError={!!errors.birthDate}/></FormRow>
+            <FormRow label="Fecha de Admisión" error={errors.admissionDate}><Input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleChange} required hasError={!!errors.admissionDate}/></FormRow>
+            <FormRow label="U. de Pregrado" error={errors.undergradUniversity}><Input name="undergradUniversity" value={formData.undergradUniversity} onChange={handleChange} required hasError={!!errors.undergradUniversity}/></FormRow>
             <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar</Button></div>
         </form>
     </Modal>);
@@ -345,20 +382,41 @@ const StudentFormModal = ({ student, onSave, onClose }: { student?: Student, onS
 
 const TeacherFormModal = ({ teacher, onSave, onClose }: { teacher?: Teacher, onSave: (teacher: Teacher) => void, onClose: () => void }) => {
     const [formData, setFormData] = useState<Teacher>(teacher || { id: 0, name: '', lastName: '', rut: '', email: '', admissionDate: '', phone: '', postgradUniversity: '', birthDate: '', photo: '', contractType: 'Planta', academicRank: 'Adjunto' });
+    const [errors, setErrors] = useState<Partial<Record<keyof Teacher, string>>>({});
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
     const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.[0]) { const base64 = await fileToBase64(e.target.files[0]); setFormData({ ...formData, photo: base64 }); } };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const newErrors: Partial<Record<keyof Teacher, string>> = {};
+        if (!formData.name) newErrors.name = 'El nombre es requerido.';
+        if (!formData.lastName) newErrors.lastName = 'El apellido es requerido.';
+        const rutError = validateField('rut', formData.rut);
+        if (rutError) newErrors.rut = rutError;
+        const emailError = validateField('email', formData.email);
+        if (emailError) newErrors.email = emailError;
+        const phoneError = validateField('phone', formData.phone);
+        if (phoneError) newErrors.phone = phoneError;
+        if (!formData.birthDate) newErrors.birthDate = 'La fecha de nacimiento es requerida.';
+        if (!formData.admissionDate) newErrors.admissionDate = 'La fecha de incorporación es requerida.';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+        onSave(formData);
+    };
     
     return (<Modal title={teacher ? 'Editar Docente' : 'Agregar Docente'} onClose={onClose} size="2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
             <FormRow label="Foto"><div className="flex items-center space-x-4"><img src={formData.photo} alt="Perfil" className="w-16 h-16 rounded-full object-cover bg-slate-200" /><Input type="file" accept="image/*" onChange={handlePhotoChange} /></div></FormRow>
-            <FormRow label="Nombres"><Input name="name" value={formData.name} onChange={handleChange} required /></FormRow>
-            <FormRow label="Apellidos"><Input name="lastName" value={formData.lastName} onChange={handleChange} required /></FormRow>
-            <FormRow label="RUT"><Input name="rut" value={formData.rut} onChange={handleChange} required /></FormRow>
-            <FormRow label="Email"><Input type="email" name="email" value={formData.email} onChange={handleChange} required /></FormRow>
-            <FormRow label="Teléfono"><Input type="tel" name="phone" value={formData.phone} onChange={handleChange} required /></FormRow>
-            <FormRow label="Fecha de Nacimiento"><Input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required /></FormRow>
-            <FormRow label="Fecha de Incorporación"><Input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleChange} required /></FormRow>
+            <FormRow label="Nombres" error={errors.name}><Input name="name" value={formData.name} onChange={handleChange} required hasError={!!errors.name} /></FormRow>
+            <FormRow label="Apellidos" error={errors.lastName}><Input name="lastName" value={formData.lastName} onChange={handleChange} required hasError={!!errors.lastName}/></FormRow>
+            <FormRow label="RUT" error={errors.rut}><Input name="rut" value={formData.rut} onChange={handleChange} required placeholder="12.345.678-9" hasError={!!errors.rut}/></FormRow>
+            <FormRow label="Email" error={errors.email}><Input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="ejemplo@email.com" hasError={!!errors.email}/></FormRow>
+            <FormRow label="Teléfono" error={errors.phone}><Input type="tel" name="phone" value={formData.phone} onChange={handleChange} required placeholder="+56912345678" hasError={!!errors.phone}/></FormRow>
+            <FormRow label="Fecha de Nacimiento" error={errors.birthDate}><Input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required hasError={!!errors.birthDate}/></FormRow>
+            <FormRow label="Fecha de Incorporación" error={errors.admissionDate}><Input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleChange} required hasError={!!errors.admissionDate}/></FormRow>
             <FormRow label="Tipo de Contrato"><Select name="contractType" value={formData.contractType} onChange={handleChange}><option value="Planta">Planta</option><option value="Honorarios">Honorarios</option><option value="Ad Honorem">Ad Honorem</option></Select></FormRow>
             <FormRow label="Calidad Docente"><Select name="academicRank" value={formData.academicRank} onChange={handleChange}><option value="Adjunto">Adjunto</option><option value="Titular">Titular</option><option value="Colaborador">Colaborador</option></Select></FormRow>
             <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar</Button></div>
@@ -693,7 +751,131 @@ const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey
 // --- Loading & Layout ---
 const LoadingScreen: React.FC = () => ( <div className="flex items-center justify-center h-screen bg-light-bg"><div className="text-center"><h1 className="text-3xl font-bold text-primary">GRUA</h1><p className="text-medium-text mt-2">Gestión de Radiología Universidad de Antofagasta</p><div className="mt-8 border-4 border-slate-200 border-t-primary rounded-full w-12 h-12 animate-spin mx-auto"></div></div></div> );
 const Sidebar: React.FC<{ currentView: View; setCurrentView: (view: View) => void, permissions: Permissions }> = ({ currentView, setCurrentView, permissions }) => { const navItems = [ { view: 'DASHBOARD', label: 'Dashboard', icon: Icons.dashboard }, { view: 'STUDENTS', label: 'Alumnos', icon: Icons.students }, { view: 'TEACHERS', label: 'Docentes', icon: Icons.teachers }, { view: 'SUBJECTS', label: 'Asignaturas', icon: Icons.subjects }, { view: 'GRADES', label: 'Calificaciones', icon: Icons.grades }, { view: 'STUDENT_FILES', label: 'Expediente Alumnos', icon: Icons.studentFile }, { view: 'TEACHER_FILES', label: 'Expediente Docentes', icon: Icons.teacherFile }, { view: 'SURVEYS', label: 'Gestión de Encuestas', icon: Icons.surveys }, { view: 'CALENDAR', label: 'Calendario', icon: Icons.calendar }, { view: 'NEWS', label: 'Noticias', icon: Icons.news }, { view: 'DOCUMENTS', label: 'Documentos Oficiales', icon: Icons.documents }, { view: 'MEETINGS', label: 'Registro de Reuniones', icon: Icons.meetings }, { view: 'SITE_MANAGEMENT', label: 'Gestión del Sitio', icon: Icons.site_management }, ] as const; const visibleNavItems = useMemo(() => navItems.filter(item => permissions.views.includes(item.view)), [permissions.views]); return ( <aside className="w-64 bg-secondary text-white flex flex-col"><div className="h-20 flex items-center justify-center text-2xl font-bold border-b border-slate-700">GRUA</div><nav className="flex-1 px-4 py-6 space-y-2">{visibleNavItems.map(item => ( <a key={item.view} href="#" onClick={(e) => { e.preventDefault(); setCurrentView(item.view); }} className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200 ${ currentView === item.view ? 'bg-primary text-white' : 'text-slate-300 hover:bg-slate-700 hover:text-white' }`}>{React.cloneElement(item.icon, { className: 'w-6 h-6' })}<span>{item.label}</span></a> ))}</nav><div className="px-4 py-6 border-t border-slate-700"><a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white">{Icons.logout}<span>Cerrar Sesión</span></a></div></aside> ); };
-const Header: React.FC<{ user: User, allUsers: User[], onUserChange: (userId: string) => void }> = ({ user, allUsers, onUserChange }) => { const teacherInfo = initialTeachers.find(t => t.id === user.originalId); return ( <header className="h-20 bg-white shadow-sm flex items-center justify-between px-8"><div className="flex items-center gap-8"><h1 className="text-2xl font-bold text-dark-text">Bienvenido, {user.name} {user.lastName}</h1><div className="flex items-center gap-2"><label className="text-sm font-semibold">Simular Usuario:</label><Select value={user.id} onChange={(e) => onUserChange(e.target.value)} className="w-64">{allUsers.map(u => <option key={u.id} value={u.id}>{u.name} {u.lastName} ({u.role})</option>)}</Select></div></div><div className="flex items-center space-x-4"><div className="text-right"><p className="font-semibold">{user.name} {user.lastName}</p><p className="text-sm text-medium-text">{user.role} {user.type === 'Docente' && teacherInfo ? ` - ${teacherInfo.academicRank}` : ''}</p></div><img src={user.photo} alt={`${user.name} ${user.lastName}`} className="w-12 h-12 rounded-full object-cover border-2 border-primary" /></div></header> ); };
+const Header: React.FC<{ user: User, allUsers: User[], onUserChange: (userId: string) => void, students: Student[], teachers: Teacher[], subjects: Subject[], onSearchResultSelect: (item: any, type: string) => void }> = ({ user, allUsers, onUserChange, students, teachers, subjects, onSearchResultSelect }) => {
+    const teacherInfo = initialTeachers.find(t => t.id === user.originalId);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState<{ students: Student[], teachers: Teacher[], subjects: Subject[] }>({ students: [], teachers: [], subjects: [] });
+    const [isFocused, setIsFocused] = useState(false);
+
+    useEffect(() => {
+        if (searchTerm.length < 2) {
+            setSearchResults({ students: [], teachers: [], subjects: [] });
+            return;
+        }
+        const lowerCaseTerm = searchTerm.toLowerCase();
+        const filteredStudents = students.filter(s =>
+            s.name.toLowerCase().includes(lowerCaseTerm) ||
+            s.lastName.toLowerCase().includes(lowerCaseTerm) ||
+            s.rut.includes(searchTerm)
+        ).slice(0, 5);
+        const filteredTeachers = teachers.filter(t =>
+            t.name.toLowerCase().includes(lowerCaseTerm) ||
+            t.lastName.toLowerCase().includes(lowerCaseTerm) ||
+            t.rut.includes(searchTerm)
+        ).slice(0, 5);
+        const filteredSubjects = subjects.filter(sub =>
+            sub.name.toLowerCase().includes(lowerCaseTerm) ||
+            sub.code.toLowerCase().includes(lowerCaseTerm)
+        ).slice(0, 5);
+        setSearchResults({ students: filteredStudents, teachers: filteredTeachers, subjects: filteredSubjects });
+    }, [searchTerm, students, teachers, subjects]);
+
+    const handleSelect = (item: any, type: string) => {
+        onSearchResultSelect(item, type);
+        setSearchTerm('');
+        setIsFocused(false);
+    };
+
+    const hasResults = searchResults.students.length > 0 || searchResults.teachers.length > 0 || searchResults.subjects.length > 0;
+
+    return (
+        <header className="h-20 bg-white shadow-sm flex items-center justify-between px-8 gap-8">
+            <div className="flex-shrink-0">
+                <h1 className="text-2xl font-bold text-dark-text">Bienvenido, {user.name}</h1>
+            </div>
+
+            <div className="relative flex-1 max-w-xl mx-auto">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    {React.cloneElement(Icons.search, { className: 'w-5 h-5' })}
+                </div>
+                <Input
+                    type="text"
+                    placeholder="Buscar alumnos, docentes, asignaturas..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setTimeout(() => setIsFocused(false), 200)} // Delay to allow click on results
+                    className="pl-10 !py-2.5"
+                />
+                {isFocused && searchTerm.length > 1 && (
+                    <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl z-50 border max-h-96 overflow-y-auto">
+                        {hasResults ? (
+                            <ul className="divide-y">
+                                {searchResults.students.length > 0 && (
+                                    <li>
+                                        <div className="px-4 py-2 bg-slate-50 text-xs font-bold uppercase text-slate-500">Alumnos</div>
+                                        <ul>
+                                            {searchResults.students.map(s => (
+                                                <li key={`s-${s.id}`} onMouseDown={() => handleSelect(s, 'student')} className="px-4 py-3 hover:bg-primary-light cursor-pointer flex items-center space-x-3">
+                                                    <img src={s.photo} className="w-8 h-8 rounded-full object-cover"/>
+                                                    <div>
+                                                      <p className="font-semibold text-dark-text">{s.name} {s.lastName}</p>
+                                                      <p className="text-sm text-medium-text">{s.rut}</p>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                )}
+                                {searchResults.teachers.length > 0 && (
+                                    <li>
+                                        <div className="px-4 py-2 bg-slate-50 text-xs font-bold uppercase text-slate-500">Docentes</div>
+                                        <ul>
+                                            {searchResults.teachers.map(t => (
+                                                <li key={`t-${t.id}`} onMouseDown={() => handleSelect(t, 'teacher')} className="px-4 py-3 hover:bg-primary-light cursor-pointer flex items-center space-x-3">
+                                                    <img src={t.photo} className="w-8 h-8 rounded-full object-cover"/>
+                                                    <div>
+                                                      <p className="font-semibold text-dark-text">{t.name} {t.lastName}</p>
+                                                      <p className="text-sm text-medium-text">{t.rut}</p>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                )}
+                                {searchResults.subjects.length > 0 && (
+                                    <li>
+                                        <div className="px-4 py-2 bg-slate-50 text-xs font-bold uppercase text-slate-500">Asignaturas</div>
+                                        <ul>
+                                            {searchResults.subjects.map(sub => (
+                                                <li key={`sub-${sub.id}`} onMouseDown={() => handleSelect(sub, 'subject')} className="px-4 py-3 hover:bg-primary-light cursor-pointer">
+                                                    <p className="font-semibold text-dark-text">{sub.name}</p>
+                                                    <p className="text-sm text-medium-text">{sub.code}</p>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                )}
+                            </ul>
+                        ) : (
+                            <div className="p-4 text-center text-medium-text">No se encontraron resultados.</div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <div className="flex items-center space-x-4 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                    <label className="text-sm font-semibold whitespace-nowrap">Simular Usuario:</label>
+                    <Select value={user.id} onChange={(e) => onUserChange(e.target.value)} className="w-48">
+                        {allUsers.map(u => <option key={u.id} value={u.id}>{u.name} {u.lastName} ({u.role})</option>)}
+                    </Select>
+                </div>
+                <img src={user.photo} alt={`${user.name} ${user.lastName}`} className="w-12 h-12 rounded-full object-cover border-2 border-primary" />
+            </div>
+        </header>
+    );
+};
 const RenderView: React.FC<{ view: View, data: any }> = ({ view, data }) => { switch (view) { case 'DASHBOARD': return <Dashboard {...data} />; case 'STUDENTS': return <StudentListPage {...data} />; case 'TEACHERS': return <TeacherListPage {...data} />; case 'SUBJECTS': return <SubjectListPage {...data} />; case 'GRADES': return <GradeManagerPage {...data} />; case 'STUDENT_FILES': return <StudentFilesPage {...data} />; case 'TEACHER_FILES': return <TeacherFilesPage {...data} />; case 'CALENDAR': return <CalendarPage {...data} />; case 'NEWS': return <NewsPage {...data} />; case 'DOCUMENTS': return <OfficialDocumentsPage {...data} />; case 'MEETINGS': return <MeetingRecordsPage {...data} />; case 'SITE_MANAGEMENT': return <SiteManagementPage {...data} />; case 'SURVEYS': return <SurveyManagementPage {...data} />; default: return <Dashboard {...data} />; } };
 const PageTitle = ({ title, children }: { title: string, children?: React.ReactNode }) => ( <div className="flex justify-between items-center mb-6"><h2 className="text-3xl font-bold text-dark-text">{title}</h2><div>{children}</div></div> );
 
@@ -772,47 +954,49 @@ const GradeManagerPage: React.FC<{ grades: Grade[], students: Student[], subject
             </Card>
 
             <Card>
-                <table className="w-full text-left">
-                    <thead>
-                        <tr className="border-b">
-                            <th className="p-4 font-semibold text-dark-text">Alumno</th>
-                            <th className="p-4 font-semibold text-dark-text">Asignatura</th>
-                            <th className="p-4 font-semibold text-center text-dark-text">Promedio</th>
-                            <th className="p-4 font-semibold text-dark-text">Estado</th>
-                            <th className="p-4 font-semibold text-dark-text">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredGrades.length > 0 ? filteredGrades.map(grade => {
-                            const student = findStudent(grade.studentId);
-                            const subject = findSubject(grade.subjectId);
-                            return (
-                                <tr key={grade.id} className="border-b last:border-0 hover:bg-slate-50">
-                                    <td className="p-4 font-medium text-dark-text">{student?.name} {student?.lastName}</td>
-                                    <td className="p-4 text-dark-text">{subject?.name}</td>
-                                    <td className="p-4 text-center font-bold text-dark-text">{calculateFinalGrade(grade)}</td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${grade.isFinalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                                            {grade.isFinalized ? 'Finalizada' : 'En Progreso'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 flex space-x-2">
-                                        {permissions.canEdit && <Button
-                                            onClick={() => openModal({ type: 'EVALUATE_GRADE', data: { grade, student, subject } })}
-                                            className="bg-slate-200 text-slate-800 hover:bg-slate-300"
-                                            disabled={!student || !subject}
-                                        >
-                                            <span>Evaluar</span>
-                                        </Button>}
-                                        {permissions.canDelete && <Button onClick={() => openModal({ type: 'DELETE_GRADE', data: grade })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button>}
-                                    </td>
-                                </tr>
-                            );
-                        }) : (
-                            <tr><td colSpan={5} className="text-center p-8 text-medium-text">No se encontraron calificaciones con los filtros seleccionados.</td></tr>
-                        )}
-                    </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[900px]">
+                        <thead>
+                            <tr className="border-b">
+                                <th className="p-4 font-semibold text-dark-text sticky left-0 bg-white z-10 w-48 border-r">Alumno</th>
+                                <th className="p-4 font-semibold text-dark-text sticky left-48 bg-white z-10 w-64 border-r">Asignatura</th>
+                                <th className="p-4 font-semibold text-center text-dark-text">Promedio</th>
+                                <th className="p-4 font-semibold text-dark-text">Estado</th>
+                                <th className="p-4 font-semibold text-dark-text">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredGrades.length > 0 ? filteredGrades.map(grade => {
+                                const student = findStudent(grade.studentId);
+                                const subject = findSubject(grade.subjectId);
+                                return (
+                                    <tr key={grade.id} className="border-b last:border-0 hover:bg-slate-50">
+                                        <td className="p-4 font-medium text-dark-text sticky left-0 bg-white z-10 border-r">{student?.name} {student?.lastName}</td>
+                                        <td className="p-4 text-dark-text sticky left-48 bg-white z-10 border-r">{subject?.name}</td>
+                                        <td className="p-4 text-center font-bold text-dark-text">{calculateFinalGrade(grade)}</td>
+                                        <td className="p-4">
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${grade.isFinalized ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                                {grade.isFinalized ? 'Finalizada' : 'En Progreso'}
+                                            </span>
+                                        </td>
+                                        <td className="p-4 flex space-x-2">
+                                            {permissions.canEdit && <Button
+                                                onClick={() => openModal({ type: 'EVALUATE_GRADE', data: { grade, student, subject } })}
+                                                className="bg-slate-200 text-slate-800 hover:bg-slate-300"
+                                                disabled={!student || !subject}
+                                            >
+                                                <span>Evaluar</span>
+                                            </Button>}
+                                            {permissions.canDelete && <Button onClick={() => openModal({ type: 'DELETE_GRADE', data: grade })} className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700" title="Eliminar">{Icons.delete}</Button>}
+                                        </td>
+                                    </tr>
+                                );
+                            }) : (
+                                <tr><td colSpan={5} className="text-center p-8 text-medium-text">No se encontraron calificaciones con los filtros seleccionados.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </Card>
         </div>
     );
@@ -824,8 +1008,8 @@ const MeetingRecordsPage: React.FC<{ meetingRecords: MeetingRecord[], students: 
 const SiteManagementPage: React.FC<{ siteLog: SiteLog[], users: User[], onUpdateUserRole: (userId: string, role: Role) => void }> = ({ siteLog, users, onUpdateUserRole }) => { const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users'); return ( <div className="space-y-8"> <PageTitle title="Gestión del Sitio" /> <Card> <div className="border-b border-slate-200 mb-4"> <nav className="flex space-x-4" aria-label="Tabs"> <button onClick={() => setActiveTab('users')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'users' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-slate-700'}`}> Gestión de Usuarios </button> <button onClick={() => setActiveTab('logs')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'logs' ? 'border-b-2 border-primary text-primary' : 'text-slate-500 hover:text-slate-700'}`}> Log de Acciones </button> </nav> </div> {activeTab === 'users' && <UserManagementTable users={users} onUpdateUserRole={onUpdateUserRole} />} {activeTab === 'logs' && <SiteLogTable siteLog={siteLog} />} </Card> </div> ); };
 const UserManagementTable: React.FC<{ users: User[], onUpdateUserRole: (userId: string, role: Role) => void }> = ({ users, onUpdateUserRole }) => { return ( <table className="w-full text-left"> <thead> <tr className="border-b"> <th className="p-4 font-semibold text-dark-text">Nombre</th> <th className="p-4 font-semibold text-dark-text">Email</th> <th className="p-4 font-semibold text-dark-text">Tipo</th> <th className="p-4 font-semibold text-dark-text">Rol</th> </tr> </thead> <tbody> {users.map(user => ( <tr key={user.id} className="border-b last:border-0 hover:bg-slate-50"> <td className="p-4 font-medium text-dark-text">{user.name} {user.lastName}</td> <td className="p-4 text-dark-text">{user.email}</td> <td className="p-4 text-dark-text">{user.type}</td> <td className="p-4"> <Select value={user.role} onChange={(e) => onUpdateUserRole(user.id, e.target.value as Role)} > <option value="Administrador">Administrador</option> <option value="Docente">Docente</option> <option value="Alumno">Alumno</option> </Select> </td> </tr> ))} </tbody> </table> ); };
 const SiteLogTable: React.FC<{ siteLog: SiteLog[] }> = ({ siteLog }) => { return ( <table className="w-full text-left"> <thead> <tr className="border-b"> <th className="p-4 font-semibold text-dark-text">Fecha y Hora</th> <th className="p-4 font-semibold text-dark-text">Usuario</th> <th className="p-4 font-semibold text-dark-text">Acción</th> <th className="p-4 font-semibold text-dark-text">Descripción</th> </tr> </thead> <tbody> {[...siteLog].reverse().map(log => ( <tr key={log.id} className="border-b last:border-0 hover:bg-slate-50"> <td className="p-4 text-dark-text">{log.timestamp.toLocaleString('es-CL')}</td> <td className="p-4 text-dark-text">{log.user}</td> <td className="p-4"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${log.action.includes('Crear') ? 'bg-green-100 text-green-800' : log.action.includes('Eliminar') ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{log.action}</span></td> <td className="p-4 text-dark-text">{log.description}</td> </tr> ))} {siteLog.length === 0 && <tr><td colSpan={4} className="text-center p-8 text-medium-text">No hay acciones registradas.</td></tr>} </tbody> </table> ); };
-const StudentFilesPage: React.FC<any> = ({ students, anotaciones, professionalActivities, personalDocuments, gradeReports, subjects, surveys, openModal, permissions, currentUser }) => { const visibleStudents = permissions.canEdit ? students : students.filter((s: Student) => s.id === currentUser.originalId); return ( <FilesPage title="Expediente de Alumnos" persons={visibleStudents} getAnotaciones={id => anotaciones.filter((a: Anotacion) => a.studentId === id)} getProfessionalActivities={id => professionalActivities.filter((a: ProfessionalActivity) => a.studentId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'student' && doc.ownerId === id)} getGradeReports={id => gradeReports.filter((r: GradeReport) => r.studentId === id)} getSurveys={id => surveys.filter((s: Survey) => s.studentId === id)} subjects={subjects} openModal={openModal} personType="student" permissions={permissions} /> );};
-const TeacherFilesPage: React.FC<any> = ({ teachers, teacherProfessionalActivities, personalDocuments, openModal, permissions }) => ( <FilesPage title="Expediente de Docentes" persons={teachers} getAnotaciones={() => []} getProfessionalActivities={id => teacherProfessionalActivities.filter((a: TeacherProfessionalActivity) => a.teacherId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'teacher' && doc.ownerId === id)} openModal={openModal} personType="teacher" permissions={permissions} />);
+const StudentFilesPage: React.FC<any> = ({ students, anotaciones, professionalActivities, personalDocuments, gradeReports, subjects, surveys, openModal, permissions, currentUser, selectedFileId }) => { const visibleStudents = permissions.canEdit ? students : students.filter((s: Student) => s.id === currentUser.originalId); return ( <FilesPage title="Expediente de Alumnos" persons={visibleStudents} getAnotaciones={id => anotaciones.filter((a: Anotacion) => a.studentId === id)} getProfessionalActivities={id => professionalActivities.filter((a: ProfessionalActivity) => a.studentId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'student' && doc.ownerId === id)} getGradeReports={id => gradeReports.filter((r: GradeReport) => r.studentId === id)} getSurveys={id => surveys.filter((s: Survey) => s.studentId === id)} subjects={subjects} openModal={openModal} personType="student" permissions={permissions} selectedFileId={selectedFileId} /> );};
+const TeacherFilesPage: React.FC<any> = ({ teachers, teacherProfessionalActivities, personalDocuments, openModal, permissions, selectedFileId }) => ( <FilesPage title="Expediente de Docentes" persons={teachers} getAnotaciones={() => []} getProfessionalActivities={id => teacherProfessionalActivities.filter((a: TeacherProfessionalActivity) => a.teacherId === id)} getPersonalDocuments={id => personalDocuments.filter((doc: PersonalDocument) => doc.ownerType === 'teacher' && doc.ownerId === id)} openModal={openModal} personType="teacher" permissions={permissions} selectedFileId={selectedFileId} />);
 const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], subjects: Subject[], teachers: Teacher[] }> = ({ surveys, students, subjects, teachers }) => {
     const [filters, setFilters] = useState({ subjectId: '', teacherId: '' });
     const completedSurveys = useMemo(() => surveys.filter(s => s.status === 'Completada'), [surveys]);
@@ -905,10 +1089,30 @@ const SurveyManagementPage: React.FC<{ surveys: Survey[], students: Student[], s
     );
 };
 
-const FilesPage: React.FC<any> = ({ title, persons, getAnotaciones, getProfessionalActivities, getPersonalDocuments, getGradeReports, getSurveys, subjects, openModal, personType, permissions }) => {
-    const [selectedPerson, setSelectedPerson] = useState<(Student | Teacher) | null>(persons[0] || null);
-    useEffect(() => { if (!selectedPerson && persons.length > 0) setSelectedPerson(persons[0]); }, [persons, selectedPerson]);
-    useEffect(() => { if(persons.length > 0) setSelectedPerson(persons.find((p: any) => p.id === selectedPerson?.id) || persons[0]); else setSelectedPerson(null); }, [persons]);
+const FilesPage: React.FC<any> = ({ title, persons, getAnotaciones, getProfessionalActivities, getPersonalDocuments, getGradeReports, getSurveys, subjects, openModal, personType, permissions, selectedFileId }) => {
+    const [selectedPerson, setSelectedPerson] = useState<(Student | Teacher) | null>(null);
+    
+    useEffect(() => {
+        if (selectedFileId) {
+            const personToSelect = persons.find((p: any) => p.id === selectedFileId);
+            if (personToSelect) {
+                setSelectedPerson(personToSelect);
+            }
+        } else if (!selectedPerson && persons.length > 0) {
+             setSelectedPerson(persons[0]);
+        }
+    }, [selectedFileId, persons]);
+
+    useEffect(() => { 
+        if (persons.length > 0) {
+            const currentSelectionExists = persons.some((p: any) => p.id === selectedPerson?.id);
+            if (!currentSelectionExists) {
+                 setSelectedPerson(persons[0]);
+            }
+        } else {
+             setSelectedPerson(null);
+        }
+    }, [persons]);
 
     return (
         <div><PageTitle title={title} /><div className="flex space-x-8 items-start"><div className="w-1/4"><Card><ul className="space-y-2 max-h-[70vh] overflow-y-auto">{persons.map((person: Student | Teacher) => ( <li key={person.id}><button onClick={() => setSelectedPerson(person)} className={`w-full text-left px-4 py-2 rounded-lg ${selectedPerson?.id === person.id ? 'bg-primary text-white' : 'hover:bg-slate-100'}`}>{person.name} {person.lastName}</button></li> ))}</ul></Card></div><div className="w-3/4">{selectedPerson ? ( <PersonProfile person={selectedPerson} anotaciones={getAnotaciones(selectedPerson.id)} activities={getProfessionalActivities(selectedPerson.id)} documents={getPersonalDocuments(selectedPerson.id)} gradeReports={getGradeReports ? getGradeReports(selectedPerson.id) : []} surveys={getSurveys ? getSurveys(selectedPerson.id) : []} subjects={subjects} openModal={openModal} personType={personType} permissions={permissions}/> ) : ( <Card><p>Seleccione una persona para ver su expediente.</p></Card> )}</div></div></div>
@@ -973,25 +1177,37 @@ const PersonProfile: React.FC<any> = ({ person, anotaciones, activities, documen
     const FullAnotacionList = ({ anotaciones }: any) => ( <ul className="space-y-4 max-h-96 overflow-y-auto">{anotaciones.map((a: Anotacion) => <li key={a.id} className="border-l-4 pl-4 data-[type=Positiva]:border-green-500 data-[type=Negativa]:border-red-500 data-[type=Observación]:border-yellow-500" data-type={a.type}><p>{a.text}</p><p className="text-xs text-light-text mt-1">{a.timestamp.toLocaleDateString('es-CL')} - {a.type}</p></li>)}</ul> );
     const FullActivityList = ({ activities }: any) => (  <ul className="space-y-2">{activities.map((a: any) => <li key={a.id}>{a.title} ({a.type}) - {new Date(a.date).toLocaleDateString('es-CL')}</li>)}</ul> );
     const FullDocumentList = ({ documents }: any) => ( <ul className="space-y-2">{documents.map((d: PersonalDocument) => <li key={d.id} className="flex items-center justify-between"><a href={d.file.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{d.file.name}</a></li>)}</ul> );
-    const FullSurveyList = ({ surveys, subjects, student, openModal, permissions }: { surveys: Survey[], subjects: Subject[], student: Student, openModal: (modal: any) => void, permissions: Permissions }) => (
-        <ul className="space-y-3">
-            {surveys.length === 0 && <p className="text-medium-text">No hay encuestas disponibles para este alumno.</p>}
-            {surveys.map((s: Survey) => {
-                const subject = subjects.find((sub: Subject) => sub.id === s.subjectId);
-                return (
-                    <li key={s.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div className="font-medium">{subject?.name}</div>
-                        <div>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full mr-4 ${s.status === 'Completada' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{s.status}</span>
-                            {s.status === 'Incompleta' && permissions.canEdit && (
-                                <Button onClick={() => openModal({ type: 'COMPLETE_SURVEY', data: { survey: s, student, subject } })} className="bg-primary text-white">Completar</Button>
-                            )}
-                        </div>
-                    </li>
-                )
-            })}
-        </ul>
-    );
+    const FullSurveyList = ({ surveys, subjects, student, openModal, permissions }: { surveys: Survey[], subjects: Subject[], student: Student, openModal: (modal: any) => void, permissions: Permissions }) => {
+        const incompleteSurveys = surveys.filter((s: Survey) => s.status === 'Incompleta');
+
+        return (
+            <div>
+                {incompleteSurveys.length > 0 && permissions.canEdit && (
+                    <div className="p-4 mb-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700 rounded-md" role="alert">
+                        <h4 className="font-bold">Encuestas Pendientes</h4>
+                        <p>Tiene {incompleteSurveys.length} encuesta(s) pendiente(s) por completar. Su feedback es muy importante para la mejora continua del programa.</p>
+                    </div>
+                )}
+                <ul className="space-y-3">
+                    {surveys.length === 0 && <p className="text-medium-text">No hay encuestas disponibles para este alumno.</p>}
+                    {surveys.map((s: Survey) => {
+                        const subject = subjects.find((sub: Subject) => sub.id === s.subjectId);
+                        return (
+                            <li key={s.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                <div className="font-medium">{subject?.name}</div>
+                                <div>
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full mr-4 ${s.status === 'Completada' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{s.status}</span>
+                                    {s.status === 'Incompleta' && permissions.canEdit && (
+                                        <Button onClick={() => openModal({ type: 'COMPLETE_SURVEY', data: { survey: s, student, subject } })} className="bg-primary text-white">Completar</Button>
+                                    )}
+                                </div>
+                            </li>
+                        )
+                    })}
+                </ul>
+            </div>
+        );
+    };
     
     const incompleteSurveysCount = useMemo(() => personType === 'student' ? surveys.filter((s: Survey) => s.status === 'Incompleta').length : 0, [surveys, personType]);
 
@@ -1053,6 +1269,7 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [modal, setModal] = useState<{ type: string; data?: any } | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(users.find(u => u.role === 'Administrador') || users[0]);
+    const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
     
     const permissions = useMemo<Permissions>(() => {
         if (!currentUser) return { canCreate: false, canEdit: false, canDelete: false, views: [] };
@@ -1062,7 +1279,7 @@ const App: React.FC = () => {
             case 'Docente':
                  return { canCreate: true, canEdit: true, canDelete: false, views: ['DASHBOARD', 'STUDENTS', 'TEACHERS', 'SUBJECTS', 'GRADES', 'STUDENT_FILES', 'TEACHER_FILES', 'SURVEYS', 'CALENDAR', 'NEWS', 'DOCUMENTS', 'MEETINGS'] };
             case 'Alumno':
-                 return { canCreate: false, canEdit: false, canDelete: false, views: ['DASHBOARD', 'STUDENT_FILES', 'CALENDAR', 'NEWS', 'DOCUMENTS'] };
+                 return { canCreate: false, canEdit: true, canDelete: false, views: ['DASHBOARD', 'STUDENT_FILES', 'CALENDAR', 'NEWS', 'DOCUMENTS'] };
             default:
                  return { canCreate: false, canEdit: false, canDelete: false, views: [] };
         }
@@ -1074,6 +1291,11 @@ const App: React.FC = () => {
         const user = currentUser ? `${currentUser.name} ${currentUser.lastName}` : "Sistema";
         const newLog: SiteLog = { id: Date.now(), timestamp: new Date(), user, action, description };
         setSiteLog(prev => [...prev, newLog]);
+    };
+    
+    const navigateTo = (view: View) => {
+        setSelectedFileId(null);
+        setCurrentView(view);
     };
 
     // --- Data Handlers ---
@@ -1102,6 +1324,18 @@ const App: React.FC = () => {
     const handleUpdateUserRole = (userId: string, role: Role) => { setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u)); logAction('Actualizar Rol de Usuario', `Usuario ID: ${userId}, Nuevo Rol: ${role}`); };
     const handleUserChange = (userId: string) => { const newCurrentUser = users.find(u => u.id === userId); if (newCurrentUser) { setCurrentUser(newCurrentUser); if (!permissions.views.includes(currentView)) { setCurrentView('DASHBOARD'); } } };
     
+    const handleGlobalSearchSelect = (item: Student | Teacher | Subject, type: 'student' | 'teacher' | 'subject') => {
+        if (type === 'student') {
+            setSelectedFileId(item.id);
+            setCurrentView('STUDENT_FILES');
+        } else if (type === 'teacher') {
+            setSelectedFileId(item.id);
+            setCurrentView('TEACHER_FILES');
+        } else if (type === 'subject') {
+            setCurrentView('SUBJECTS');
+        }
+    };
+    
     useEffect(() => {
         if (currentUser && !permissions.views.includes(currentView)) {
             setCurrentView('DASHBOARD');
@@ -1110,15 +1344,15 @@ const App: React.FC = () => {
 
 
     // FIX: Changed `onUpdateUserRole` to `onUpdateUserRole: handleUpdateUserRole` because `onUpdateUserRole` is not defined.
-    const dataContext = { students, teachers, subjects, grades, activityLog, anotaciones, calendarEvents, news, gradeReports, officialDocuments, meetingRecords, professionalActivities, teacherProfessionalActivities, personalDocuments, siteLog, quickLinks, surveys, users, openModal: setModal, setCurrentView, permissions, currentUser, onUpdateUserRole: handleUpdateUserRole };
+    const dataContext = { students, teachers, subjects, grades, activityLog, anotaciones, calendarEvents, news, gradeReports, officialDocuments, meetingRecords, professionalActivities, teacherProfessionalActivities, personalDocuments, siteLog, quickLinks, surveys, users, openModal: setModal, setCurrentView: navigateTo, permissions, currentUser, onUpdateUserRole: handleUpdateUserRole, selectedFileId };
     
     if (isLoading || !currentUser) return <LoadingScreen />;
 
     return (
         <div className="flex h-screen bg-light-bg text-dark-text">
-            <Sidebar currentView={currentView} setCurrentView={setCurrentView} permissions={permissions} />
+            <Sidebar currentView={currentView} setCurrentView={navigateTo} permissions={permissions} />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header user={currentUser} allUsers={users} onUserChange={handleUserChange}/>
+                <Header user={currentUser} allUsers={users} onUserChange={handleUserChange} students={students} teachers={teachers} subjects={subjects} onSearchResultSelect={handleGlobalSearchSelect}/>
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-8">
                     <RenderView view={currentView} data={dataContext} />
                 </main>
