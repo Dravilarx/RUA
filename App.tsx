@@ -292,8 +292,17 @@ const calculateFinalGrade = (grade: Grade): string => {
     return finalGrade.toFixed(1);
 };
 
-const validateField = (name: string, value: string): string => {
-    if (!value) return 'Este campo es requerido.';
+const validateField = (name: string, value: any): string => {
+    const optionalFields = ['photo', 'teacherId', 'description', 'streamingLink', 'doiLink', 'link', 'linkText', 'postgradUniversity', 'nationality'];
+
+    if (optionalFields.includes(name)) {
+        if (!value) return '';
+    } else {
+        if (value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) {
+            return 'Este campo es requerido.';
+        }
+    }
+    
     switch (name) {
         case 'rut':
             if (!/^\d{1,2}\.\d{3}\.\d{3}-[\dKk]$/.test(value)) return 'Formato de RUT inválido. Ej: 12.345.678-9';
@@ -303,6 +312,16 @@ const validateField = (name: string, value: string): string => {
             break;
         case 'phone':
             if (!/^\+569\d{8}$/.test(value)) return 'Formato de teléfono inválido. Ej: +56912345678';
+            break;
+        case 'credits':
+        case 'semester':
+            if (isNaN(Number(value)) || Number(value) <= 0) return 'Debe ser un número positivo.';
+            break;
+        case 'url':
+        case 'link':
+        case 'doiLink':
+        case 'streamingLink':
+             if (value && !/^https?:\/\/[^\s$.?#].[^\s]*$/.test(value)) return 'URL inválida.';
             break;
     }
     return '';
@@ -316,8 +335,8 @@ const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
 const Button: React.FC<{ children: React.ReactNode; onClick?: () => void; className?: string; type?: 'button' | 'submit' | 'reset'; disabled?: boolean; [key: string]: any; }> = ({ children, onClick, className = 'bg-primary hover:bg-primary-hover text-white', type = 'button', disabled = false, ...props }) => ( <button type={type} onClick={onClick} disabled={disabled} className={`px-4 py-2 rounded-md font-semibold transition-colors duration-200 flex items-center justify-center space-x-2 disabled:bg-slate-300 disabled:cursor-not-allowed ${className}`} {...props}>{children}</button> );
 const Modal: React.FC<{ children: React.ReactNode; title: string; onClose: () => void; size?: 'lg' | '2xl' | '4xl' | '6xl' }> = ({ children, title, onClose, size = 'lg' }) => { const sizeClasses = { lg: 'max-w-lg', '2xl': 'max-w-2xl', '4xl': 'max-w-4xl', '6xl': 'max-w-6xl' }; return ( <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-start pt-10 overflow-y-auto" onClick={onClose}><div className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} mx-4 mb-10`} onClick={e => e.stopPropagation()}><div className="p-6 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-lg z-10"><h3 className="text-xl font-bold text-dark-text">{title}</h3><button onClick={onClose} className="text-3xl font-light text-slate-400 hover:text-slate-700 leading-none">&times;</button></div><div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div></div></div> ); };
 const Input = (props: React.InputHTMLAttributes<HTMLInputElement> & { hasError?: boolean }) => { const { hasError, ...rest } = props; return <input {...rest} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500 ${hasError ? 'border-red-500 focus:ring-red-500' : 'border-slate-300 focus:ring-primary'}`} />; };
-const Select = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => ( <select {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500" /> );
-const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => ( <textarea {...props} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500" /> );
+const Select = (props: React.SelectHTMLAttributes<HTMLSelectElement> & { hasError?: boolean }) => { const { hasError, ...rest } = props; return <select {...rest} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500 ${hasError ? 'border-red-500 focus:ring-red-500' : 'border-slate-300 focus:ring-primary'}`} /> };
+const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { hasError?: boolean }) => { const { hasError, ...rest } = props; return <textarea {...rest} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 bg-white text-dark-text disabled:bg-slate-100 disabled:text-slate-500 ${hasError ? 'border-red-500 focus:ring-red-500' : 'border-slate-300 focus:ring-primary'}`} /> };
 const FormRow: React.FC<{ label: string; children: React.ReactNode; error?: string }> = ({ label, children, error }) => ( <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-start"><label className="font-semibold pt-2">{label}</label><div className="md:col-span-2">{children}{error && <p className="text-red-500 text-xs mt-1">{error}</p>}</div></div> );
 const competencyLabels = [ "Juicio Clínico y Razonamiento", "Conocimientos y Habilidades Técnicas", "Profesionalismo y Ética", "Comunicación y Habilidades Interpersonales", "Trabajo en Equipo y Colaboración", "Aprendizaje Continuo y Autoevaluación", "Gestión y Seguridad del Paciente", "Manejo de la Información" ];
 const competencyScale = { 1: "Nunca", 2: "Rara Vez", 3: "Pocas Veces", 4: "A Veces", 5: "Frecuentemente", 6: "Generalmente", 7: "Casi Siempre" };
@@ -340,42 +359,65 @@ const ConfirmDeleteModal = ({ onConfirm, onCancel, title, message }: { onConfirm
 const StudentFormModal = ({ student, onSave, onClose }: { student?: Student, onSave: (student: Student) => void, onClose: () => void }) => {
     const [formData, setFormData] = useState<Student>(student || { id: 0, name: '', lastName: '', rut: '', email: '', admissionDate: '', phone: '', undergradUniversity: '', nationality: '', birthDate: '', photo: '' });
     const [errors, setErrors] = useState<Partial<Record<keyof Student, string>>>({});
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const [touched, setTouched] = useState<Partial<Record<keyof Student, boolean>>>({});
+    
+    const runValidation = (fieldName: keyof Student, fieldValue: string) => {
+        const error = validateField(fieldName, fieldValue);
+        setErrors(prev => ({ ...prev, [fieldName]: error }));
+        return error;
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name } = e.target as { name: keyof Student };
+        if (!touched[name]) {
+            setTouched(prev => ({ ...prev, [name]: true }));
+        }
+        runValidation(name, formData[name] as string);
+    };
+    
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target as { name: keyof Student, value: string };
+        setFormData({ ...formData, [name]: value });
+        if (touched[name]) {
+            runValidation(name, value);
+        }
+    };
+    
     const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.[0]) { const base64 = await fileToBase64(e.target.files[0]); setFormData({ ...formData, photo: base64 }); } };
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const newErrors: Partial<Record<keyof Student, string>> = {};
-        if (!formData.name) newErrors.name = 'El nombre es requerido.';
-        if (!formData.lastName) newErrors.lastName = 'El apellido es requerido.';
-        const rutError = validateField('rut', formData.rut);
-        if (rutError) newErrors.rut = rutError;
-        const emailError = validateField('email', formData.email);
-        if (emailError) newErrors.email = emailError;
-        const phoneError = validateField('phone', formData.phone);
-        if (phoneError) newErrors.phone = phoneError;
-        if (!formData.birthDate) newErrors.birthDate = 'La fecha de nacimiento es requerida.';
-        if (!formData.admissionDate) newErrors.admissionDate = 'La fecha de admisión es requerida.';
-        if (!formData.undergradUniversity) newErrors.undergradUniversity = 'La universidad de pregrado es requerida.';
+        const formErrors: Partial<Record<keyof Student, string>> = {};
+        let formIsValid = true;
 
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            return;
+        (Object.keys(formData) as Array<keyof Student>).forEach(key => {
+            const error = validateField(key, formData[key] as string);
+            if (error) {
+                formErrors[key] = error;
+                formIsValid = false;
+            }
+        });
+
+        setTouched(Object.keys(formData).reduce((acc, key) => ({ ...acc, [key]: true }), {}));
+        setErrors(formErrors);
+
+        if (formIsValid) {
+            onSave(formData);
         }
-        onSave(formData);
     };
     
     return (<Modal title={student ? 'Editar Alumno' : 'Agregar Alumno'} onClose={onClose} size="2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
             <FormRow label="Foto"><div className="flex items-center space-x-4"><img src={formData.photo} alt="Perfil" className="w-16 h-16 rounded-full object-cover bg-slate-200" /><Input type="file" accept="image/*" onChange={handlePhotoChange} /></div></FormRow>
-            <FormRow label="Nombres" error={errors.name}><Input name="name" value={formData.name} onChange={handleChange} required hasError={!!errors.name} /></FormRow>
-            <FormRow label="Apellidos" error={errors.lastName}><Input name="lastName" value={formData.lastName} onChange={handleChange} required hasError={!!errors.lastName}/></FormRow>
-            <FormRow label="RUT" error={errors.rut}><Input name="rut" value={formData.rut} onChange={handleChange} required placeholder="12.345.678-9" hasError={!!errors.rut}/></FormRow>
-            <FormRow label="Email" error={errors.email}><Input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="ejemplo@email.com" hasError={!!errors.email}/></FormRow>
-            <FormRow label="Teléfono" error={errors.phone}><Input type="tel" name="phone" value={formData.phone} onChange={handleChange} required placeholder="+56912345678" hasError={!!errors.phone}/></FormRow>
-            <FormRow label="Fecha de Nacimiento" error={errors.birthDate}><Input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required hasError={!!errors.birthDate}/></FormRow>
-            <FormRow label="Fecha de Admisión" error={errors.admissionDate}><Input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleChange} required hasError={!!errors.admissionDate}/></FormRow>
-            <FormRow label="U. de Pregrado" error={errors.undergradUniversity}><Input name="undergradUniversity" value={formData.undergradUniversity} onChange={handleChange} required hasError={!!errors.undergradUniversity}/></FormRow>
+            <FormRow label="Nombres" error={touched.name ? errors.name : ''}><Input name="name" value={formData.name} onChange={handleChange} onBlur={handleBlur} required hasError={touched.name && !!errors.name} /></FormRow>
+            <FormRow label="Apellidos" error={touched.lastName ? errors.lastName : ''}><Input name="lastName" value={formData.lastName} onChange={handleChange} onBlur={handleBlur} required hasError={touched.lastName && !!errors.lastName}/></FormRow>
+            <FormRow label="RUT" error={touched.rut ? errors.rut : ''}><Input name="rut" value={formData.rut} onChange={handleChange} onBlur={handleBlur} required placeholder="12.345.678-9" hasError={touched.rut && !!errors.rut}/></FormRow>
+            <FormRow label="Email" error={touched.email ? errors.email : ''}><Input type="email" name="email" value={formData.email} onChange={handleChange} onBlur={handleBlur} required placeholder="ejemplo@email.com" hasError={touched.email && !!errors.email}/></FormRow>
+            <FormRow label="Teléfono" error={touched.phone ? errors.phone : ''}><Input type="tel" name="phone" value={formData.phone} onChange={handleChange} onBlur={handleBlur} required placeholder="+56912345678" hasError={touched.phone && !!errors.phone}/></FormRow>
+            <FormRow label="Fecha de Nacimiento" error={touched.birthDate ? errors.birthDate : ''}><Input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} onBlur={handleBlur} required hasError={touched.birthDate && !!errors.birthDate}/></FormRow>
+            <FormRow label="Fecha de Admisión" error={touched.admissionDate ? errors.admissionDate : ''}><Input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleChange} onBlur={handleBlur} required hasError={touched.admissionDate && !!errors.admissionDate}/></FormRow>
+            <FormRow label="U. de Pregrado" error={touched.undergradUniversity ? errors.undergradUniversity : ''}><Input name="undergradUniversity" value={formData.undergradUniversity} onChange={handleChange} onBlur={handleBlur} required hasError={touched.undergradUniversity && !!errors.undergradUniversity}/></FormRow>
+            <FormRow label="Nacionalidad" error={touched.nationality ? errors.nationality : ''}><Input name="nationality" value={formData.nationality} onChange={handleChange} onBlur={handleBlur} hasError={touched.nationality && !!errors.nationality}/></FormRow>
             <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar</Button></div>
         </form>
     </Modal>);
@@ -384,42 +426,66 @@ const StudentFormModal = ({ student, onSave, onClose }: { student?: Student, onS
 const TeacherFormModal = ({ teacher, onSave, onClose }: { teacher?: Teacher, onSave: (teacher: Teacher) => void, onClose: () => void }) => {
     const [formData, setFormData] = useState<Teacher>(teacher || { id: 0, name: '', lastName: '', rut: '', email: '', admissionDate: '', phone: '', postgradUniversity: '', birthDate: '', photo: '', contractType: 'Planta', academicRank: 'Adjunto' });
     const [errors, setErrors] = useState<Partial<Record<keyof Teacher, string>>>({});
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const [touched, setTouched] = useState<Partial<Record<keyof Teacher, boolean>>>({});
+
+    const runValidation = (fieldName: keyof Teacher, fieldValue: string) => {
+        const error = validateField(fieldName, fieldValue);
+        setErrors(prev => ({ ...prev, [fieldName]: error }));
+        return error;
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name } = e.target as { name: keyof Teacher };
+        if (!touched[name]) {
+            setTouched(prev => ({ ...prev, [name]: true }));
+        }
+        runValidation(name, formData[name] as string);
+    };
+    
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target as { name: keyof Teacher, value: any };
+        setFormData({ ...formData, [name]: value });
+        if (touched[name]) {
+            runValidation(name, value);
+        }
+    };
+    
     const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.[0]) { const base64 = await fileToBase64(e.target.files[0]); setFormData({ ...formData, photo: base64 }); } };
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const newErrors: Partial<Record<keyof Teacher, string>> = {};
-        if (!formData.name) newErrors.name = 'El nombre es requerido.';
-        if (!formData.lastName) newErrors.lastName = 'El apellido es requerido.';
-        const rutError = validateField('rut', formData.rut);
-        if (rutError) newErrors.rut = rutError;
-        const emailError = validateField('email', formData.email);
-        if (emailError) newErrors.email = emailError;
-        const phoneError = validateField('phone', formData.phone);
-        if (phoneError) newErrors.phone = phoneError;
-        if (!formData.birthDate) newErrors.birthDate = 'La fecha de nacimiento es requerida.';
-        if (!formData.admissionDate) newErrors.admissionDate = 'La fecha de incorporación es requerida.';
+        const formErrors: Partial<Record<keyof Teacher, string>> = {};
+        let formIsValid = true;
+        
+        (Object.keys(formData) as Array<keyof Teacher>).forEach(key => {
+            const error = validateField(key, formData[key] as string);
+            if (error) {
+                formErrors[key] = error;
+                formIsValid = false;
+            }
+        });
 
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            return;
+        setTouched(Object.keys(formData).reduce((acc, key) => ({ ...acc, [key]: true }), {}));
+        setErrors(formErrors);
+
+        if (formIsValid) {
+            onSave(formData);
         }
-        onSave(formData);
     };
     
     return (<Modal title={teacher ? 'Editar Docente' : 'Agregar Docente'} onClose={onClose} size="2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
             <FormRow label="Foto"><div className="flex items-center space-x-4"><img src={formData.photo} alt="Perfil" className="w-16 h-16 rounded-full object-cover bg-slate-200" /><Input type="file" accept="image/*" onChange={handlePhotoChange} /></div></FormRow>
-            <FormRow label="Nombres" error={errors.name}><Input name="name" value={formData.name} onChange={handleChange} required hasError={!!errors.name} /></FormRow>
-            <FormRow label="Apellidos" error={errors.lastName}><Input name="lastName" value={formData.lastName} onChange={handleChange} required hasError={!!errors.lastName}/></FormRow>
-            <FormRow label="RUT" error={errors.rut}><Input name="rut" value={formData.rut} onChange={handleChange} required placeholder="12.345.678-9" hasError={!!errors.rut}/></FormRow>
-            <FormRow label="Email" error={errors.email}><Input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="ejemplo@email.com" hasError={!!errors.email}/></FormRow>
-            <FormRow label="Teléfono" error={errors.phone}><Input type="tel" name="phone" value={formData.phone} onChange={handleChange} required placeholder="+56912345678" hasError={!!errors.phone}/></FormRow>
-            <FormRow label="Fecha de Nacimiento" error={errors.birthDate}><Input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required hasError={!!errors.birthDate}/></FormRow>
-            <FormRow label="Fecha de Incorporación" error={errors.admissionDate}><Input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleChange} required hasError={!!errors.admissionDate}/></FormRow>
-            <FormRow label="Tipo de Contrato"><Select name="contractType" value={formData.contractType} onChange={handleChange}><option value="Planta">Planta</option><option value="Honorarios">Honorarios</option><option value="Ad Honorem">Ad Honorem</option></Select></FormRow>
-            <FormRow label="Calidad Docente"><Select name="academicRank" value={formData.academicRank} onChange={handleChange}><option value="Adjunto">Adjunto</option><option value="Titular">Titular</option><option value="Colaborador">Colaborador</option></Select></FormRow>
+            <FormRow label="Nombres" error={touched.name ? errors.name : ''}><Input name="name" value={formData.name} onChange={handleChange} onBlur={handleBlur} required hasError={touched.name && !!errors.name} /></FormRow>
+            <FormRow label="Apellidos" error={touched.lastName ? errors.lastName : ''}><Input name="lastName" value={formData.lastName} onChange={handleChange} onBlur={handleBlur} required hasError={touched.lastName && !!errors.lastName}/></FormRow>
+            <FormRow label="RUT" error={touched.rut ? errors.rut : ''}><Input name="rut" value={formData.rut} onChange={handleChange} onBlur={handleBlur} required placeholder="12.345.678-9" hasError={touched.rut && !!errors.rut}/></FormRow>
+            <FormRow label="Email" error={touched.email ? errors.email : ''}><Input type="email" name="email" value={formData.email} onChange={handleChange} onBlur={handleBlur} required placeholder="ejemplo@email.com" hasError={touched.email && !!errors.email}/></FormRow>
+            <FormRow label="Teléfono" error={touched.phone ? errors.phone : ''}><Input type="tel" name="phone" value={formData.phone} onChange={handleChange} onBlur={handleBlur} required placeholder="+56912345678" hasError={touched.phone && !!errors.phone}/></FormRow>
+            <FormRow label="Fecha de Nacimiento" error={touched.birthDate ? errors.birthDate : ''}><Input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} onBlur={handleBlur} required hasError={touched.birthDate && !!errors.birthDate}/></FormRow>
+            <FormRow label="Fecha de Incorporación" error={touched.admissionDate ? errors.admissionDate : ''}><Input type="date" name="admissionDate" value={formData.admissionDate} onChange={handleChange} onBlur={handleBlur} required hasError={touched.admissionDate && !!errors.admissionDate}/></FormRow>
+            <FormRow label="U. de Postgrado" error={touched.postgradUniversity ? errors.postgradUniversity : ''}><Input name="postgradUniversity" value={formData.postgradUniversity} onChange={handleChange} onBlur={handleBlur} hasError={touched.postgradUniversity && !!errors.postgradUniversity}/></FormRow>
+            <FormRow label="Tipo de Contrato"><Select name="contractType" value={formData.contractType} onChange={handleChange} onBlur={handleBlur}><option value="Planta">Planta</option><option value="Honorarios">Honorarios</option><option value="Ad Honorem">Ad Honorem</option></Select></FormRow>
+            <FormRow label="Calidad Docente"><Select name="academicRank" value={formData.academicRank} onChange={handleChange} onBlur={handleBlur}><option value="Adjunto">Adjunto</option><option value="Titular">Titular</option><option value="Colaborador">Colaborador</option></Select></FormRow>
             <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar</Button></div>
         </form>
     </Modal>);
@@ -427,20 +493,61 @@ const TeacherFormModal = ({ teacher, onSave, onClose }: { teacher?: Teacher, onS
 
 const SubjectFormModal = ({ subject, teachers, onSave, onClose }: { subject?: Subject, teachers: Teacher[], onSave: (subject: Subject) => void, onClose: () => void }) => {
     const [formData, setFormData] = useState<Subject>(subject || { id: 0, name: '', code: '', teacherId: undefined, credits: 0, semester: 1, description: '' });
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData({ ...formData, [name]: name === 'teacherId' || name === 'credits' || name === 'semester' ? parseInt(value) : value });
+    const [errors, setErrors] = useState<Partial<Record<keyof Subject, string>>>({});
+    const [touched, setTouched] = useState<Partial<Record<keyof Subject, boolean>>>({});
+    
+    const runValidation = (fieldName: keyof Subject, fieldValue: any) => {
+        const error = validateField(fieldName, fieldValue);
+        setErrors(prev => ({ ...prev, [fieldName]: error }));
+        return error;
     };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
+    
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name } = e.target as { name: keyof Subject };
+        if (!touched[name]) {
+            setTouched(prev => ({ ...prev, [name]: true }));
+        }
+        runValidation(name, formData[name]);
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target as { name: keyof Subject, value: any };
+        const parsedValue = name === 'teacherId' || name === 'credits' || name === 'semester' ? (value ? parseInt(value) : value) : value;
+        setFormData({ ...formData, [name]: parsedValue });
+        if (touched[name]) {
+            runValidation(name, parsedValue);
+        }
+    };
+    
+    const handleSubmit = (e: React.FormEvent) => { 
+        e.preventDefault(); 
+        const formErrors: Partial<Record<keyof Subject, string>> = {};
+        let formIsValid = true;
+        
+        (Object.keys(formData) as Array<keyof Subject>).forEach(key => {
+            const error = validateField(key, formData[key] as any);
+            if (error) {
+                formErrors[key] = error;
+                formIsValid = false;
+            }
+        });
+
+        setTouched(Object.keys(formData).reduce((acc, key) => ({ ...acc, [key]: true }), {}));
+        setErrors(formErrors);
+
+        if (formIsValid) {
+            onSave(formData);
+        }
+    };
 
     return (<Modal title={subject ? 'Editar Asignatura' : 'Agregar Asignatura'} onClose={onClose} size="2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
-            <FormRow label="Nombre Asignatura"><Input name="name" value={formData.name} onChange={handleChange} required /></FormRow>
-            <FormRow label="Código"><Input name="code" value={formData.code} onChange={handleChange} required /></FormRow>
-            <FormRow label="Docente a Cargo"><Select name="teacherId" value={formData.teacherId} onChange={handleChange}><option value="">Seleccione un docente</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}</Select></FormRow>
-            <FormRow label="Créditos"><Input type="number" name="credits" value={formData.credits} onChange={handleChange} required /></FormRow>
-            <FormRow label="Semestre"><Input type="number" name="semester" value={formData.semester} onChange={handleChange} required /></FormRow>
-            <FormRow label="Descripción"><Textarea name="description" value={formData.description} onChange={handleChange} rows={4}/></FormRow>
+            <FormRow label="Nombre Asignatura" error={touched.name ? errors.name : ''}><Input name="name" value={formData.name} onChange={handleChange} onBlur={handleBlur} required hasError={touched.name && !!errors.name}/></FormRow>
+            <FormRow label="Código" error={touched.code ? errors.code : ''}><Input name="code" value={formData.code} onChange={handleChange} onBlur={handleBlur} required hasError={touched.code && !!errors.code}/></FormRow>
+            <FormRow label="Docente a Cargo" error={touched.teacherId ? errors.teacherId : ''}><Select name="teacherId" value={formData.teacherId} onChange={handleChange} onBlur={handleBlur} hasError={touched.teacherId && !!errors.teacherId}><option value="">Seleccione un docente</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name} {t.lastName}</option>)}</Select></FormRow>
+            <FormRow label="Créditos" error={touched.credits ? errors.credits : ''}><Input type="number" name="credits" value={formData.credits} onChange={handleChange} onBlur={handleBlur} required hasError={touched.credits && !!errors.credits}/></FormRow>
+            <FormRow label="Semestre" error={touched.semester ? errors.semester : ''}><Input type="number" name="semester" value={formData.semester} onChange={handleChange} onBlur={handleBlur} required hasError={touched.semester && !!errors.semester}/></FormRow>
+            <FormRow label="Descripción" error={touched.description ? errors.description : ''}><Textarea name="description" value={formData.description} onChange={handleChange} onBlur={handleBlur} rows={4} hasError={touched.description && !!errors.description}/></FormRow>
             <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar</Button></div>
         </form>
     </Modal>);
@@ -520,22 +627,51 @@ const EvaluationModal = ({ grade, student, subject, onSave, onClose }: { grade: 
         </Modal>
     );
 };
-const ReportViewerModal = ({ report, student, subject, onAccept, onClose }: { report: GradeReport, student: Student, subject: Subject, onAccept: (reportId: number) => void, onClose: () => void }) => { const [accepted, setAccepted] = useState(false); return ( <Modal title={`Informe de Evaluación - ${student.name} ${student.lastName}`} onClose={onClose} size="2xl"><div className="space-y-6"><p className="text-center text-medium-text">Generado el {report.generationDate.toLocaleDateString('es-CL')} para la asignatura <strong>{subject.name}</strong></p><Card><h4 className="font-bold mb-2">Resumen de Calificaciones</h4><p>Nota Final Ponderada: <strong className="text-lg">{report.gradeSummary.finalGrade.toFixed(2)}</strong></p></Card><Card><h4 className="font-bold mb-2">Evaluación de Competencias</h4><ul className="list-disc list-inside space-y-1">{competencyLabels.map((i, index) => <li key={i}>{i}: <strong>{report.competencyScores[index] ? `${report.competencyScores[index]} (${competencyScale[report.competencyScores[index] as keyof typeof competencyScale]})` : 'No evaluado'}</strong></li>)}</ul></Card><Card><h4 className="font-bold mb-2">Feedback del Docente</h4><p className="whitespace-pre-wrap">{report.feedback || 'Sin comentarios.'}</p></Card>{report.status === 'Completado' ? ( <div className="text-center p-4 bg-emerald-50 rounded-lg text-emerald-800">Informe aceptado por el alumno el {report.studentAcceptanceDate?.toLocaleDateString('es-CL')}.</div> ) : ( <div className="border-t pt-6 space-y-4"><label className="flex items-center space-x-3 cursor-pointer"><input type="checkbox" checked={accepted} onChange={() => setAccepted(!accepted)} className="sr-only" /><div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${accepted ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>{accepted && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}</div><span>He leído y acepto el contenido de esta evaluación.</span></label><div className="flex justify-end"><Button onClick={() => onAccept(report.id)} disabled={!accepted}>Firmar y Aceptar Informe</Button></div></div> )}</div></Modal> ); };
+const ReportViewerModal = ({ report, student, subject, onAccept, onClose }: { report: GradeReport, student: Student, subject: Subject, onAccept: (reportId: number) => void, onClose: () => void }) => {
+    const [accepted, setAccepted] = useState(false);
+    return (
+        <Modal title={`Informe de Evaluación - ${student.name} ${student.lastName}`} onClose={onClose} size="2xl">
+            <div className="space-y-6">
+                <p className="text-center text-medium-text">Generado el {report.generationDate.toLocaleDateString('es-CL')} para la asignatura <strong>{subject.name}</strong></p>
+                <Card><h4 className="font-bold mb-2">Resumen de Calificaciones</h4><p>Nota Final Ponderada: <strong className="text-lg">{report.gradeSummary.finalGrade.toFixed(2)}</strong></p></Card>
+                <Card><h4 className="font-bold mb-2">Evaluación de Competencias</h4><ul className="list-disc list-inside space-y-1">{competencyLabels.map((i, index) => <li key={i}>{i}: <strong>{report.competencyScores[index] ? `${report.competencyScores[index]} (${competencyScale[report.competencyScores[index] as keyof typeof competencyScale]})` : 'No evaluado'}</strong></li>)}</ul></Card>
+                <Card><h4 className="font-bold mb-2">Feedback del Docente</h4><p className="whitespace-pre-wrap">{report.feedback || 'Sin comentarios.'}</p></Card>
+                {report.status === 'Completado' ? (
+                    <div className="text-center p-4 bg-emerald-50 rounded-lg text-emerald-800">Informe aceptado por el alumno el {report.studentAcceptanceDate?.toLocaleDateString('es-CL')}.</div>
+                ) : (
+                    <div className="border-t pt-6 space-y-4">
+                        <label className="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" checked={accepted} onChange={() => setAccepted(!accepted)} className="sr-only peer" />
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 peer-checked:bg-primary peer-checked:border-primary ${accepted ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
+                                {accepted && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                            </div>
+                            <span>He leído y acepto el contenido de esta evaluación.</span>
+                        </label>
+                        <div className="flex justify-end"><Button onClick={() => onAccept(report.id)} disabled={!accepted}>Firmar y Aceptar Informe</Button></div>
+                    </div>
+                )}
+            </div>
+        </Modal>
+    );
+};
+
 
 const AnotacionFormModal = ({ studentId, autorId, onSave, onClose }: { studentId: number, autorId: number, onSave: (anotacion: Anotacion) => void, onClose: () => void }) => {
     const [type, setType] = useState<'Positiva' | 'Negativa' | 'Observación'>('Observación');
     const [text, setText] = useState('');
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave({ id: 0, studentId, autorId, timestamp: new Date(), type, text }); };
-    return ( <Modal title="Agregar Anotación" onClose={onClose}> <form onSubmit={handleSubmit} className="space-y-4"> <FormRow label="Tipo de Anotación"> <Select value={type} onChange={e => setType(e.target.value as any)}> <option value="Observación">Observación</option> <option value="Positiva">Positiva</option> <option value="Negativa">Negativa</option> </Select> </FormRow> <FormRow label="Descripción"> <Textarea value={text} onChange={e => setText(e.target.value)} rows={5} required /> </FormRow> <div className="flex justify-end space-x-2 pt-4"> <Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button> <Button type="submit">Guardar Anotación</Button> </div> </form> </Modal> );
+    const [error, setError] = useState('');
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if(!text) { setError('La descripción es requerida.'); return; } onSave({ id: 0, studentId, autorId, timestamp: new Date(), type, text }); };
+    return ( <Modal title="Agregar Anotación" onClose={onClose}> <form onSubmit={handleSubmit} className="space-y-4"> <FormRow label="Tipo de Anotación"> <Select value={type} onChange={e => setType(e.target.value as any)}> <option value="Observación">Observación</option> <option value="Positiva">Positiva</option> <option value="Negativa">Negativa</option> </Select> </FormRow> <FormRow label="Descripción" error={error}> <Textarea value={text} onChange={e => { setText(e.target.value); if(e.target.value) setError(''); }} rows={5} required hasError={!!error} /> </FormRow> <div className="flex justify-end space-x-2 pt-4"> <Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button> <Button type="submit">Guardar Anotación</Button> </div> </form> </Modal> );
 };
 
 const PersonalDocumentFormModal = ({ ownerId, ownerType, onSave, onClose }: { ownerId: number, ownerType: 'student' | 'teacher', onSave: (doc: PersonalDocument) => void, onClose: () => void }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [file, setFile] = useState<{ name: string; url: string; type: string; } | null>(null);
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => { const selectedFile = e.target.files?.[0]; if (selectedFile) { const base64 = await fileToBase64(selectedFile); setFile({ name: selectedFile.name, url: base64, type: selectedFile.type }); } };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!file) { alert("Por favor, seleccione un archivo."); return; } onSave({ id: 0, ownerId, ownerType, title, description, uploadDate: new Date(), file }); };
-    return ( <Modal title="Agregar Documento Personal" onClose={onClose}> <form onSubmit={handleSubmit} className="space-y-4"> <FormRow label="Título del Documento"><Input value={title} onChange={e => setTitle(e.target.value)} required /></FormRow> <FormRow label="Descripción"><Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} /></FormRow> <FormRow label="Archivo"><Input type="file" onChange={handleFileChange} required /></FormRow> {file && <p className="text-sm text-medium-text">Archivo seleccionado: {file.name}</p>} <div className="flex justify-end space-x-2 pt-4"> <Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button> <Button type="submit">Guardar Documento</Button> </div> </form> </Modal> );
+    const [errors, setErrors] = useState<{title?: string, file?: string}>({});
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); const newErrors: {title?: string, file?: string} = {}; if(!title) newErrors.title = 'El título es requerido.'; if(!file) newErrors.file = 'Debe seleccionar un archivo.'; if(Object.keys(newErrors).length > 0) { setErrors(newErrors); return; } onSave({ id: 0, ownerId, ownerType, title, description, uploadDate: new Date(), file: file! }); };
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => { const selectedFile = e.target.files?.[0]; if (selectedFile) { const base64 = await fileToBase64(selectedFile); setFile({ name: selectedFile.name, url: base64, type: selectedFile.type }); setErrors(prev => ({...prev, file: ''})); } };
+    return ( <Modal title="Agregar Documento Personal" onClose={onClose}> <form onSubmit={handleSubmit} className="space-y-4"> <FormRow label="Título del Documento" error={errors.title}><Input value={title} onChange={e => { setTitle(e.target.value); if(e.target.value) setErrors(prev => ({...prev, title: ''})); }} required hasError={!!errors.title} /></FormRow> <FormRow label="Descripción"><Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} /></FormRow> <FormRow label="Archivo" error={errors.file}><Input type="file" onChange={handleFileChange} required hasError={!!errors.file} /></FormRow> {file && <p className="text-sm text-medium-text">Archivo seleccionado: {file.name}</p>} <div className="flex justify-end space-x-2 pt-4"> <Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button> <Button type="submit">Guardar Documento</Button> </div> </form> </Modal> );
 };
 
 const ProfessionalActivityFormModal = ({ personId, personType, onSave, onClose }: { personId: number, personType: 'student' | 'teacher', onSave: (activity: ProfessionalActivity | TeacherProfessionalActivity) => void, onClose: () => void }) => {
@@ -574,12 +710,12 @@ const ProfessionalActivityFormModal = ({ personId, personType, onSave, onClose }
 
 const CalendarEventFormModal = ({ event, onSave, onClose }: { event?: CalendarEvent, onSave: (event: CalendarEvent) => void, onClose: () => void }) => {
     const [formData, setFormData] = useState<Partial<CalendarEvent>>(event || { title: '', start: new Date(), end: new Date(), type: 'Evento' });
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!formData.title || !formData.start || !formData.end) return; onSave(formData as CalendarEvent); };
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         const isDate = name === 'start' || name === 'end';
         setFormData({ ...formData, [name]: isDate ? new Date(value) : value });
     };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData as CalendarEvent); };
 
     return (
         <Modal title={event ? 'Editar Evento' : 'Agregar Evento'} onClose={onClose}>
@@ -599,7 +735,7 @@ const NewsArticleFormModal = ({ article, onSave, onClose }: { article?: NewsArti
     const [formData, setFormData] = useState<Partial<NewsArticle>>(article || { title: '', content: '', author: '', link: '', linkText: '' });
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
     const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files?.[0]) { const base64 = await fileToBase64(e.target.files[0]); setFormData({ ...formData, imageUrl: base64 }); } };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave({ ...formData, date: new Date() } as NewsArticle); };
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if(!formData.title || !formData.author || !formData.content) return; onSave({ ...formData, date: new Date() } as NewsArticle); };
     
     return (
         <Modal title={article ? 'Editar Noticia' : 'Agregar Noticia'} onClose={onClose} size="2xl">
@@ -664,14 +800,15 @@ const MeetingRecordFormModal = ({ record, students, teachers, onSave, onClose }:
 
 const QuickLinkFormModal = ({ link, onSave, onClose }: { link?: QuickLink; onSave: (link: QuickLink) => void; onClose: () => void; }) => {
     const [formData, setFormData] = useState(link || { id: 0, label: '', url: '' });
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
+    const [errors, setErrors] = useState({label: '', url: ''});
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { setFormData({ ...formData, [e.target.name]: e.target.value }); setErrors({label:'', url:''}); };
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); const labelErr = validateField('label', formData.label); const urlErr = validateField('url', formData.url); if(labelErr || urlErr) { setErrors({label: labelErr, url: urlErr}); return; } onSave(formData); };
 
     return (
         <Modal title={link ? 'Editar Enlace Rápido' : 'Agregar Enlace Rápido'} onClose={onClose}>
             <form onSubmit={handleSubmit} className="space-y-4">
-                <FormRow label="Etiqueta"><Input name="label" value={formData.label} onChange={handleChange} required /></FormRow>
-                <FormRow label="URL"><Input type="url" name="url" value={formData.url} onChange={handleChange} required placeholder="https://ejemplo.com" /></FormRow>
+                <FormRow label="Etiqueta" error={errors.label}><Input name="label" value={formData.label} onChange={handleChange} required hasError={!!errors.label} /></FormRow>
+                <FormRow label="URL" error={errors.url}><Input type="url" name="url" value={formData.url} onChange={handleChange} required placeholder="https://ejemplo.com" hasError={!!errors.url} /></FormRow>
                 <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar Enlace</Button></div>
             </form>
         </Modal>
@@ -703,25 +840,25 @@ const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey
                 <div className="space-y-8">
                     {surveyQuestions.map((q, index) => (
                         <Card key={q.id} className="bg-slate-50">
-                            <label className="font-bold text-dark-text block mb-4">{index + 1}. {q.text}</label>
+                            <p className="font-bold text-dark-text block mb-4">{index + 1}. {q.text}</p>
                             {q.type === 'multiple-choice' && (
-                                <div className="flex flex-wrap gap-4">
+                                <div className="flex flex-wrap gap-x-6 gap-y-4">
                                     {q.options?.map(option => {
                                         const isChecked = answers.find(a => a.questionId === q.id)?.answer === option;
                                         return (
-                                            <label key={option} className="flex items-center space-x-2 cursor-pointer p-2 rounded-md hover:bg-slate-100">
+                                            <label key={option} className="flex items-center space-x-3 cursor-pointer">
                                                 <input
                                                     type="radio"
                                                     name={`question-${q.id}`}
                                                     value={option}
                                                     checked={isChecked}
                                                     onChange={e => handleAnswerChange(q.id, e.target.value)}
-                                                    className="sr-only"
+                                                    className="sr-only peer"
                                                 />
-                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isChecked ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
-                                                    {isChecked && <div className="w-2 h-2 rounded-full bg-white"></div>}
+                                                <div className="w-5 h-5 rounded-full border-2 border-slate-400 bg-white peer-checked:bg-primary peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-primary flex-shrink-0 flex items-center justify-center transition">
+                                                    <div className="w-2 h-2 rounded-full bg-white scale-0 peer-checked:scale-100 transition-transform"></div>
                                                 </div>
-                                                <span>{option}</span>
+                                                <span className="text-dark-text">{option}</span>
                                             </label>
                                         );
                                     })}
@@ -751,26 +888,29 @@ const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey
 
 const GeneralSurveyFormModal = ({ survey, onSave, onClose }: { survey?: GeneralSurvey, onSave: (survey: GeneralSurvey) => void, onClose: () => void }) => {
     const [formData, setFormData] = useState<Partial<GeneralSurvey>>(survey || { title: '', description: '', isLink: false, link: '' });
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const [errors, setErrors] = useState({title: '', link: ''});
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setFormData({ ...formData, [e.target.name]: e.target.value }); setErrors({title: '', link: ''}); };
     const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, isLink: e.target.checked });
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData as GeneralSurvey); };
+    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); const titleErr = validateField('title', formData.title); const linkErr = formData.isLink ? validateField('link', formData.link) : ''; if(titleErr || linkErr) { setErrors({title: titleErr, link: linkErr}); return; } onSave(formData as GeneralSurvey); };
     
     return (
         <Modal title={survey ? 'Editar Encuesta General' : 'Crear Encuesta General'} onClose={onClose} size="2xl">
             <form onSubmit={handleSubmit} className="space-y-4">
-                <FormRow label="Título"><Input name="title" value={formData.title} onChange={handleChange} required /></FormRow>
+                <FormRow label="Título" error={errors.title}><Input name="title" value={formData.title} onChange={handleChange} required hasError={!!errors.title} /></FormRow>
                 <FormRow label="Descripción"><Textarea name="description" value={formData.description} onChange={handleChange} rows={4} /></FormRow>
                 <FormRow label="Tipo de Encuesta">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" name="isLink" checked={formData.isLink} onChange={handleCheckboxChange} className="sr-only" />
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${formData.isLink ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
-                            {formData.isLink && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox" name="isLink" checked={!!formData.isLink} onChange={handleCheckboxChange} className="sr-only peer" />
+                        <div className="w-5 h-5 rounded border-2 border-slate-400 bg-white peer-checked:bg-primary peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-primary flex-shrink-0 flex items-center justify-center transition">
+                            <svg className="w-3 h-3 text-white scale-0 peer-checked:scale-100 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
                         </div>
                         <span>Es un enlace externo</span>
                     </label>
                 </FormRow>
                 {formData.isLink && (
-                    <FormRow label="Enlace (URL)"><Input name="link" value={formData.link} onChange={handleChange} placeholder="https://forms.gle/..." required /></FormRow>
+                    <FormRow label="Enlace (URL)" error={errors.link}><Input name="link" value={formData.link} onChange={handleChange} placeholder="https://forms.gle/..." required={formData.isLink} hasError={!!errors.link} /></FormRow>
                 )}
                  <p className="text-xs text-medium-text">{!formData.isLink ? 'La encuesta interna usará el set de preguntas estándar de rotaciones.' : 'Los usuarios serán redirigidos a este enlace para completar la encuesta.'}</p>
                 <div className="flex justify-end space-x-2 pt-4"><Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button><Button type="submit">Guardar Encuesta</Button></div>
@@ -818,6 +958,18 @@ const AssignSurveyModal = ({ survey, users, onSave, onClose }: { survey: General
     const allStudentsSelected = students.length > 0 && students.every(s => selectedUserIds.has(s.id));
     const allTeachersSelected = teachers.length > 0 && teachers.every(t => selectedUserIds.has(t.id));
 
+    const CustomCheckbox = ({ checked, onChange, children }: { checked: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, children: React.ReactNode }) => (
+        <label className="flex items-center space-x-3 cursor-pointer">
+            <input type="checkbox" checked={checked} onChange={onChange} className="sr-only peer" />
+            <div className="w-5 h-5 rounded border-2 border-slate-400 bg-white peer-checked:bg-primary peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-primary flex-shrink-0 flex items-center justify-center transition">
+                <svg className="w-3 h-3 text-white scale-0 peer-checked:scale-100 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            {children}
+        </label>
+    );
+
     return (
         <Modal title={`Asignar Encuesta: ${survey.title}`} onClose={onClose} size="4xl">
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -828,33 +980,27 @@ const AssignSurveyModal = ({ survey, users, onSave, onClose }: { survey: General
                     <div>
                         <h4 className="font-bold text-lg mb-2 text-dark-text">Docentes</h4>
                         <div className="border rounded-lg p-3">
-                            <label className="flex items-center space-x-2 pb-2 border-b mb-2 cursor-pointer">
-                                <input 
-                                    type="checkbox" 
+                            <div className="pb-2 border-b mb-2">
+                                <CustomCheckbox
                                     checked={allTeachersSelected}
                                     onChange={(e) => handleSelectAll('teacher', e.target.checked)}
-                                    className="sr-only"
-                                />
-                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${allTeachersSelected ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
-                                    {allTeachersSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
-                                </div>
-                                <span>Seleccionar todos los docentes</span>
-                            </label>
+                                >
+                                    <span>Seleccionar todos los docentes</span>
+                                </CustomCheckbox>
+                            </div>
                             <div className="max-h-64 overflow-y-auto space-y-1">
                                 {teachers.map(user => (
-                                    <label key={user.id} className="flex items-center space-x-3 p-2 rounded-md hover:bg-slate-100 cursor-pointer">
-                                        <input 
-                                            type="checkbox"
+                                    <div key={user.id} className="p-2 rounded-md hover:bg-slate-100">
+                                        <CustomCheckbox
                                             checked={selectedUserIds.has(user.id)}
                                             onChange={() => handleUserToggle(user.id)}
-                                            className="sr-only"
-                                        />
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedUserIds.has(user.id) ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
-                                            {selectedUserIds.has(user.id) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
-                                        </div>
-                                        <img src={user.photo} className="w-8 h-8 rounded-full object-cover" />
-                                        <span>{user.name} {user.lastName}</span>
-                                    </label>
+                                        >
+                                            <div className="flex items-center space-x-2">
+                                                <img src={user.photo} className="w-8 h-8 rounded-full object-cover" alt="" />
+                                                <span>{user.name} {user.lastName}</span>
+                                            </div>
+                                        </CustomCheckbox>
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -864,33 +1010,27 @@ const AssignSurveyModal = ({ survey, users, onSave, onClose }: { survey: General
                     <div>
                         <h4 className="font-bold text-lg mb-2 text-dark-text">Alumnos</h4>
                          <div className="border rounded-lg p-3">
-                            <label className="flex items-center space-x-2 pb-2 border-b mb-2 cursor-pointer">
-                                <input 
-                                    type="checkbox" 
+                             <div className="pb-2 border-b mb-2">
+                                <CustomCheckbox
                                     checked={allStudentsSelected}
                                     onChange={(e) => handleSelectAll('student', e.target.checked)}
-                                    className="sr-only"
-                                />
-                                 <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${allStudentsSelected ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
-                                    {allStudentsSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
-                                </div>
-                                <span>Seleccionar todos los alumnos</span>
-                            </label>
+                                >
+                                    <span>Seleccionar todos los alumnos</span>
+                                </CustomCheckbox>
+                            </div>
                             <div className="max-h-64 overflow-y-auto space-y-1">
                                 {students.map(user => (
-                                    <label key={user.id} className="flex items-center space-x-3 p-2 rounded-md hover:bg-slate-100 cursor-pointer">
-                                        <input 
-                                            type="checkbox"
+                                    <div key={user.id} className="p-2 rounded-md hover:bg-slate-100">
+                                        <CustomCheckbox
                                             checked={selectedUserIds.has(user.id)}
                                             onChange={() => handleUserToggle(user.id)}
-                                            className="sr-only"
-                                        />
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedUserIds.has(user.id) ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
-                                            {selectedUserIds.has(user.id) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
-                                        </div>
-                                        <img src={user.photo} className="w-8 h-8 rounded-full object-cover" />
-                                        <span>{user.name} {user.lastName}</span>
-                                    </label>
+                                        >
+                                            <div className="flex items-center space-x-2">
+                                                <img src={user.photo} className="w-8 h-8 rounded-full object-cover" alt="" />
+                                                <span>{user.name} {user.lastName}</span>
+                                            </div>
+                                        </CustomCheckbox>
+                                    </div>
                                 ))}
                             </div>
                         </div>
