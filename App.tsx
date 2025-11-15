@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { initialStudents, initialTeachers, initialSubjects, initialGrades, initialActivityLog, initialAnotaciones, initialCalendarEvents, initialNewsArticles, initialGradeReports, initialOfficialDocuments, initialMeetingRecords, initialProfessionalActivities, initialTeacherProfessionalActivities, initialPersonalDocuments, initialSiteLog, initialQuickLinks, initialSurveys, surveyQuestions, initialUsers, initialGeneralSurveys, initialSurveyAssignments } from './data';
 import type { Student, Teacher, Subject, Grade, ActivityLog, Anotacion, CalendarEvent, NewsArticle, GradeReport, OfficialDocument, MeetingRecord, ProfessionalActivity, TeacherProfessionalActivity, PersonalDocument, ActivityType, TeacherActivityType, SiteLog, QuickLink, Survey, SurveyAnswer, User, Role, GeneralSurvey, SurveyAssignment } from './types';
@@ -519,7 +520,7 @@ const EvaluationModal = ({ grade, student, subject, onSave, onClose }: { grade: 
         </Modal>
     );
 };
-const ReportViewerModal = ({ report, student, subject, onAccept, onClose }: { report: GradeReport, student: Student, subject: Subject, onAccept: (reportId: number) => void, onClose: () => void }) => { const [accepted, setAccepted] = useState(false); return ( <Modal title={`Informe de Evaluación - ${student.name} ${student.lastName}`} onClose={onClose} size="2xl"><div className="space-y-6"><p className="text-center text-medium-text">Generado el {report.generationDate.toLocaleDateString('es-CL')} para la asignatura <strong>{subject.name}</strong></p><Card><h4 className="font-bold mb-2">Resumen de Calificaciones</h4><p>Nota Final Ponderada: <strong className="text-lg">{report.gradeSummary.finalGrade.toFixed(2)}</strong></p></Card><Card><h4 className="font-bold mb-2">Evaluación de Competencias</h4><ul className="list-disc list-inside space-y-1">{competencyLabels.map((i, index) => <li key={i}>{i}: <strong>{report.competencyScores[index] ? `${report.competencyScores[index]} (${competencyScale[report.competencyScores[index] as keyof typeof competencyScale]})` : 'No evaluado'}</strong></li>)}</ul></Card><Card><h4 className="font-bold mb-2">Feedback del Docente</h4><p className="whitespace-pre-wrap">{report.feedback || 'Sin comentarios.'}</p></Card>{report.status === 'Completado' ? ( <div className="text-center p-4 bg-emerald-50 rounded-lg text-emerald-800">Informe aceptado por el alumno el {report.studentAcceptanceDate?.toLocaleDateString('es-CL')}.</div> ) : ( <div className="border-t pt-6 space-y-4"><label className="flex items-center space-x-3"><input type="checkbox" checked={accepted} onChange={() => setAccepted(!accepted)} className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" /><span>He leído y acepto el contenido de esta evaluación.</span></label><div className="flex justify-end"><Button onClick={() => onAccept(report.id)} disabled={!accepted}>Firmar y Aceptar Informe</Button></div></div> )}</div></Modal> ); };
+const ReportViewerModal = ({ report, student, subject, onAccept, onClose }: { report: GradeReport, student: Student, subject: Subject, onAccept: (reportId: number) => void, onClose: () => void }) => { const [accepted, setAccepted] = useState(false); return ( <Modal title={`Informe de Evaluación - ${student.name} ${student.lastName}`} onClose={onClose} size="2xl"><div className="space-y-6"><p className="text-center text-medium-text">Generado el {report.generationDate.toLocaleDateString('es-CL')} para la asignatura <strong>{subject.name}</strong></p><Card><h4 className="font-bold mb-2">Resumen de Calificaciones</h4><p>Nota Final Ponderada: <strong className="text-lg">{report.gradeSummary.finalGrade.toFixed(2)}</strong></p></Card><Card><h4 className="font-bold mb-2">Evaluación de Competencias</h4><ul className="list-disc list-inside space-y-1">{competencyLabels.map((i, index) => <li key={i}>{i}: <strong>{report.competencyScores[index] ? `${report.competencyScores[index]} (${competencyScale[report.competencyScores[index] as keyof typeof competencyScale]})` : 'No evaluado'}</strong></li>)}</ul></Card><Card><h4 className="font-bold mb-2">Feedback del Docente</h4><p className="whitespace-pre-wrap">{report.feedback || 'Sin comentarios.'}</p></Card>{report.status === 'Completado' ? ( <div className="text-center p-4 bg-emerald-50 rounded-lg text-emerald-800">Informe aceptado por el alumno el {report.studentAcceptanceDate?.toLocaleDateString('es-CL')}.</div> ) : ( <div className="border-t pt-6 space-y-4"><label className="flex items-center space-x-3 cursor-pointer"><input type="checkbox" checked={accepted} onChange={() => setAccepted(!accepted)} className="sr-only" /><div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${accepted ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>{accepted && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}</div><span>He leído y acepto el contenido de esta evaluación.</span></label><div className="flex justify-end"><Button onClick={() => onAccept(report.id)} disabled={!accepted}>Firmar y Aceptar Informe</Button></div></div> )}</div></Modal> ); };
 
 const AnotacionFormModal = ({ studentId, autorId, onSave, onClose }: { studentId: number, autorId: number, onSave: (anotacion: Anotacion) => void, onClose: () => void }) => {
     const [type, setType] = useState<'Positiva' | 'Negativa' | 'Observación'>('Observación');
@@ -678,8 +679,7 @@ const QuickLinkFormModal = ({ link, onSave, onClose }: { link?: QuickLink; onSav
 };
 
 const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey: Survey, student: Student, subject: Subject, onSave: (survey: Survey, answers: SurveyAnswer[]) => void, onClose: () => void }) => {
-    const [answers, setAnswers] = useState<SurveyAnswer[]>([]);
-    const allQuestionsAnswered = useMemo(() => answers.length === surveyQuestions.length, [answers]);
+    const [answers, setAnswers] = useState<SurveyAnswer[]>(survey.answers || []);
 
     const handleAnswerChange = (questionId: number, answer: string) => {
         setAnswers(prev => {
@@ -693,10 +693,6 @@ const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!allQuestionsAnswered) {
-            alert('Por favor, responda todas las preguntas antes de enviar.');
-            return;
-        }
         onSave(survey, answers);
     };
 
@@ -710,27 +706,33 @@ const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey
                             <label className="font-bold text-dark-text block mb-4">{index + 1}. {q.text}</label>
                             {q.type === 'multiple-choice' && (
                                 <div className="flex flex-wrap gap-4">
-                                    {q.options?.map(option => (
-                                        <label key={option} className="flex items-center space-x-2 cursor-pointer p-2 rounded-md hover:bg-slate-200">
-                                            <input
-                                                type="radio"
-                                                name={`question-${q.id}`}
-                                                value={option}
-                                                onChange={e => handleAnswerChange(q.id, e.target.value)}
-                                                required
-                                                className="h-4 w-4 text-primary focus:ring-primary border-slate-300"
-                                            />
-                                            <span>{option}</span>
-                                        </label>
-                                    ))}
+                                    {q.options?.map(option => {
+                                        const isChecked = answers.find(a => a.questionId === q.id)?.answer === option;
+                                        return (
+                                            <label key={option} className="flex items-center space-x-2 cursor-pointer p-2 rounded-md hover:bg-slate-100">
+                                                <input
+                                                    type="radio"
+                                                    name={`question-${q.id}`}
+                                                    value={option}
+                                                    checked={isChecked}
+                                                    onChange={e => handleAnswerChange(q.id, e.target.value)}
+                                                    className="sr-only"
+                                                />
+                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isChecked ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
+                                                    {isChecked && <div className="w-2 h-2 rounded-full bg-white"></div>}
+                                                </div>
+                                                <span>{option}</span>
+                                            </label>
+                                        );
+                                    })}
                                 </div>
                             )}
                             {q.type === 'open-text' && (
                                 <Textarea
                                     rows={4}
+                                    value={answers.find(a => a.questionId === q.id)?.answer || ''}
                                     onChange={e => handleAnswerChange(q.id, e.target.value)}
                                     placeholder="Escriba su respuesta"
-                                    required
                                 />
                             )}
                         </Card>
@@ -738,7 +740,7 @@ const SurveyFormModal = ({ survey, student, subject, onSave, onClose }: { survey
                 </div>
                 <div className="flex justify-end space-x-2 pt-4 border-t">
                     <Button onClick={onClose} className="bg-slate-200 text-slate-800 hover:bg-slate-300">Cancelar</Button>
-                    <Button type="submit" disabled={!allQuestionsAnswered} title={!allQuestionsAnswered ? 'Debe responder todas las preguntas' : ''}>
+                    <Button type="submit">
                         Enviar Encuesta
                     </Button>
                 </div>
@@ -759,8 +761,11 @@ const GeneralSurveyFormModal = ({ survey, onSave, onClose }: { survey?: GeneralS
                 <FormRow label="Título"><Input name="title" value={formData.title} onChange={handleChange} required /></FormRow>
                 <FormRow label="Descripción"><Textarea name="description" value={formData.description} onChange={handleChange} rows={4} /></FormRow>
                 <FormRow label="Tipo de Encuesta">
-                    <label className="flex items-center space-x-2">
-                        <input type="checkbox" name="isLink" checked={formData.isLink} onChange={handleCheckboxChange} className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300" />
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" name="isLink" checked={formData.isLink} onChange={handleCheckboxChange} className="sr-only" />
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${formData.isLink ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
+                            {formData.isLink && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                        </div>
                         <span>Es un enlace externo</span>
                     </label>
                 </FormRow>
@@ -828,8 +833,11 @@ const AssignSurveyModal = ({ survey, users, onSave, onClose }: { survey: General
                                     type="checkbox" 
                                     checked={allTeachersSelected}
                                     onChange={(e) => handleSelectAll('teacher', e.target.checked)}
-                                    className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300"
+                                    className="sr-only"
                                 />
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${allTeachersSelected ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
+                                    {allTeachersSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                                </div>
                                 <span>Seleccionar todos los docentes</span>
                             </label>
                             <div className="max-h-64 overflow-y-auto space-y-1">
@@ -839,8 +847,11 @@ const AssignSurveyModal = ({ survey, users, onSave, onClose }: { survey: General
                                             type="checkbox"
                                             checked={selectedUserIds.has(user.id)}
                                             onChange={() => handleUserToggle(user.id)}
-                                            className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300"
+                                            className="sr-only"
                                         />
+                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedUserIds.has(user.id) ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
+                                            {selectedUserIds.has(user.id) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                                        </div>
                                         <img src={user.photo} className="w-8 h-8 rounded-full object-cover" />
                                         <span>{user.name} {user.lastName}</span>
                                     </label>
@@ -858,8 +869,11 @@ const AssignSurveyModal = ({ survey, users, onSave, onClose }: { survey: General
                                     type="checkbox" 
                                     checked={allStudentsSelected}
                                     onChange={(e) => handleSelectAll('student', e.target.checked)}
-                                    className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300"
+                                    className="sr-only"
                                 />
+                                 <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${allStudentsSelected ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
+                                    {allStudentsSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                                </div>
                                 <span>Seleccionar todos los alumnos</span>
                             </label>
                             <div className="max-h-64 overflow-y-auto space-y-1">
@@ -869,8 +883,11 @@ const AssignSurveyModal = ({ survey, users, onSave, onClose }: { survey: General
                                             type="checkbox"
                                             checked={selectedUserIds.has(user.id)}
                                             onChange={() => handleUserToggle(user.id)}
-                                            className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300"
+                                            className="sr-only"
                                         />
+                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${selectedUserIds.has(user.id) ? 'border-primary bg-primary' : 'border-slate-400 bg-white'}`}>
+                                            {selectedUserIds.has(user.id) && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                                        </div>
                                         <img src={user.photo} className="w-8 h-8 rounded-full object-cover" />
                                         <span>{user.name} {user.lastName}</span>
                                     </label>
