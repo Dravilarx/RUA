@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             colors: {
@@ -39,7 +40,7 @@
 }
 </script>
 </head>
-  <body class="bg-light-bg font-sans antialiased">
+  <body class="bg-light-bg dark:bg-slate-900 font-sans antialiased">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
